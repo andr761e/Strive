@@ -6,6 +6,7 @@ import { ActiveWorkoutPage } from './pages/ActiveWorkout';
 import { ProgressPage } from './pages/Progress';
 import { SuggestionsPage } from './pages/Suggestions';
 import { ProfilePage } from './pages/Profile';
+import { ManageRoutinesPage } from './pages/ManageRoutines';
 import { Layout } from './Layout';
 
 export const router = createBrowserRouter([
@@ -17,6 +18,7 @@ export const router = createBrowserRouter([
       { path: 'workout-template-selection', Component: WorkoutTemplateSelectionPage },
       { path: 'exercise-selection', Component: ExerciseSelectionPage },
       { path: 'active-workout', Component: ActiveWorkoutPage },
+      { path: 'manage-routines', Component: ManageRoutinesPage },
       { path: 'progress', Component: ProgressPage },
       { path: 'insights', Component: SuggestionsPage },
       { path: 'suggestions', Component: SuggestionsPage }, // Keep old route for compatibility

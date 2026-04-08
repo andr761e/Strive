@@ -1,8 +1,34 @@
-import { User, Calendar, TrendingUp, Award, Settings, Target } from 'lucide-react';
-import { userProfile, workoutHistory, personalRecords } from '../data/mockData';
+import { useState } from 'react';
+import { User, Calendar, TrendingUp, Award, Settings, Target, Edit2 } from 'lucide-react';
+import { userProfile, workoutHistory, personalRecords, exercises } from '../data/mockData';
 import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 
 export function ProfilePage() {
+  const [prList, setPrList] = useState(personalRecords);
+  const [editPRDialogOpen, setEditPRDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredExercises = exercises.filter(ex => 
+    ex.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const addPR = (exerciseName: string) => {
+    const newPR = {
+      exercise: exerciseName,
+      weight: 0,
+      reps: 0,
+      date: format(new Date(), 'yyyy-MM-dd'),
+    };
+    setPrList([...prList, newPR]);
+    setEditPRDialogOpen(false);
+    setSearchQuery('');
+  };
+
+  const removePR = (index: number) => {
+    setPrList(prList.filter((_, i) => i !== index));
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white pb-20">
       {/* Header with Profile Info */}
@@ -66,12 +92,20 @@ export function ProfilePage() {
 
       {/* Personal Records */}
       <div className="px-4 py-4">
-        <h2 className="text-lg mb-3 flex items-center gap-2">
-          <Award className="w-5 h-5 text-yellow-400" />
-          Personal Records
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg flex items-center gap-2">
+            <Award className="w-5 h-5 text-yellow-400" />
+            Personal Records
+          </h2>
+          <button
+            onClick={() => setEditPRDialogOpen(true)}
+            className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+          >
+            <Edit2 className="w-4 h-4 text-blue-400" />
+          </button>
+        </div>
         <div className="space-y-2">
-          {personalRecords.map((record, idx) => (
+          {prList.map((record, idx) => (
             <div
               key={idx}
               className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 flex justify-between items-center"
@@ -157,6 +191,83 @@ export function ProfilePage() {
           <div className="text-zinc-400">→</div>
         </button>
       </div>
+
+      {/* Edit PR Dialog */}
+      <Dialog open={editPRDialogOpen} onOpenChange={setEditPRDialogOpen}>
+        <DialogContent className="bg-zinc-900 text-white border-zinc-800 max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Customize Personal Records</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-3">
+            <p className="text-sm text-zinc-400">
+              Select exercises to track as your personal records. You can add or remove exercises.
+            </p>
+
+            {/* Current PRs */}
+            {prList.length > 0 && (
+              <div>
+                <label className="text-sm text-zinc-400 mb-2 block">Current Records</label>
+                <div className="space-y-2">
+                  {prList.map((record, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-zinc-800 rounded-lg p-3 flex items-center justify-between"
+                    >
+                      <span className="text-white text-sm">{record.exercise}</span>
+                      <button
+                        onClick={() => removePR(idx)}
+                        className="text-xs text-red-400 hover:text-red-300"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Add Exercise */}
+            <div>
+              <label className="text-sm text-zinc-400 mb-2 block">Add Exercise</label>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search exercises..."
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white placeholder:text-zinc-500 mb-2"
+              />
+            </div>
+          </div>
+
+          {searchQuery && (
+            <div className="space-y-1 overflow-y-auto flex-1">
+              {filteredExercises
+                .filter(ex => !prList.find(pr => pr.exercise === ex.name))
+                .slice(0, 10)
+                .map((ex) => (
+                  <button
+                    key={ex.id}
+                    onClick={() => addPR(ex.name)}
+                    className="w-full bg-zinc-800 hover:bg-zinc-700 p-2 rounded text-left transition-colors"
+                  >
+                    <div className="text-white text-sm">{ex.name}</div>
+                    <div className="flex gap-1 mt-1">
+                      {ex.mainMuscles.map((muscle) => (
+                        <span
+                          key={muscle}
+                          className="text-xs bg-zinc-900 text-blue-400 px-1.5 py-0.5 rounded"
+                        >
+                          {muscle}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

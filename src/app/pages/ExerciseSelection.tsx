@@ -24,6 +24,15 @@ export function ExerciseSelectionPage() {
     );
   };
 
+  const toggleExercise = (exercise: Exercise) => {
+    const isSelected = selectedExercises.find((e) => e.id === exercise.id);
+    if (isSelected) {
+      setSelectedExercises(selectedExercises.filter((e) => e.id !== exercise.id));
+    } else {
+      setSelectedExercises([...selectedExercises, exercise]);
+    }
+  };
+
   const filteredExercises = exercises.filter((ex) => {
     const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesMuscle =
@@ -31,12 +40,6 @@ export function ExerciseSelectionPage() {
       ex.mainMuscles.some((m) => selectedMuscles.includes(m));
     return matchesSearch && matchesMuscle;
   });
-
-  const addExercise = (exercise: Exercise) => {
-    if (!selectedExercises.find((e) => e.id === exercise.id)) {
-      setSelectedExercises([...selectedExercises, exercise]);
-    }
-  };
 
   const startWorkout = () => {
     if (selectedExercises.length > 0) {
@@ -154,8 +157,7 @@ export function ExerciseSelectionPage() {
                 )}
               </div>
               <button
-                onClick={() => addExercise(exercise)}
-                disabled={!!isSelected}
+                onClick={() => toggleExercise(exercise)}
                 className={`ml-3 p-2 rounded-lg transition-colors ${
                   isSelected
                     ? 'bg-green-600 text-white'

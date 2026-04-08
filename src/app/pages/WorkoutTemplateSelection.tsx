@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Plus, Calendar, Dumbbell } from 'lucide-react';
-import { workoutTemplates } from '../data/mockData';
+import { ArrowLeft, Plus, Calendar, Dumbbell, Settings } from 'lucide-react';
+import { workoutTemplates, getPreviousWorkoutData, type Exercise } from '../data/mockData';
 import { format } from 'date-fns';
 
 export function WorkoutTemplateSelectionPage() {
@@ -9,7 +9,13 @@ export function WorkoutTemplateSelectionPage() {
   const selectTemplate = (templateId: string) => {
     const template = workoutTemplates.find(t => t.id === templateId);
     if (template) {
-      navigate('/exercise-selection', { state: { template } });
+      // Go directly to active workout instead of exercise selection
+      navigate('/active-workout', { 
+        state: { 
+          exercises: template.exercises,
+          workoutName: template.name
+        } 
+      });
     }
   };
 
@@ -17,15 +23,27 @@ export function WorkoutTemplateSelectionPage() {
     navigate('/exercise-selection');
   };
 
+  const manageRoutines = () => {
+    navigate('/manage-routines');
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white pb-20">
       {/* Header */}
       <div className="sticky top-0 bg-zinc-950 border-b border-zinc-800 z-10">
-        <div className="px-4 py-4 flex items-center gap-3">
-          <button onClick={() => navigate('/')} className="text-zinc-400">
-            <ArrowLeft className="w-6 h-6" />
+        <div className="px-4 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 flex-1">
+            <button onClick={() => navigate('/')} className="text-zinc-400">
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <h1 className="text-xl">Start Workout</h1>
+          </div>
+          <button
+            onClick={manageRoutines}
+            className="p-2 text-zinc-400 hover:text-white transition-colors"
+          >
+            <Settings className="w-5 h-5" />
           </button>
-          <h1 className="text-xl flex-1">Start Workout</h1>
         </div>
       </div>
 

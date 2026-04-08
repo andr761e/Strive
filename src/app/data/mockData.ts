@@ -15,6 +15,7 @@ export interface WorkoutSet {
   rir?: number;
   previousWeight?: number;
   previousReps?: number;
+  completed?: boolean;  // Track if set is completed/locked
 }
 
 export interface ExerciseLog {
