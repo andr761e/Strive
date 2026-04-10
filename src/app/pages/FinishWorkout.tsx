@@ -104,15 +104,13 @@ export function FinishWorkoutPage() {
     // In real app, save workout with notes and feeling
     finishWorkout();
     
-    // TODO: Check if workout was started from a routine
-    // For now, we'll show the routine update dialog as a demo
-    // In real implementation, check if workoutRoutineId exists
-    const isFromRoutine = !!routineId; // Replace with actual check
+    // Check if workout was started from a routine
+    const isFromRoutine = !!routineId;
     
     if (isFromRoutine) {
       setRoutineUpdateDialogOpen(true);
     } else {
-      navigate('/');
+      navigateToSummary();
     }
   };
 
@@ -124,12 +122,38 @@ export function FinishWorkoutPage() {
   const handleUpdateRoutine = () => {
     // In real app, update the routine with current workout data
     setRoutineUpdateDialogOpen(false);
-    navigate('/');
+    navigateToSummary();
   };
 
   const handleKeepRoutine = () => {
     setRoutineUpdateDialogOpen(false);
-    navigate('/');
+    navigateToSummary();
+  };
+
+  const navigateToSummary = () => {
+    // Calculate total volume
+    const totalVolume = workoutExercises.reduce((acc, ex) => 
+      acc + ex.sets.reduce((setAcc, set) => setAcc + (set.weight * set.reps), 0), 0
+    );
+
+    // Get all muscles trained
+    const musclesTrained = workoutExercises.flatMap(ex => ex.mainMuscles);
+
+    // Mock comparison data (in real app, compare to actual previous workout)
+    const summaryData = {
+      workoutName,
+      duration: elapsedSeconds,
+      totalSets: workoutExercises.reduce((acc, ex) => acc + ex.sets.length, 0),
+      totalVolume,
+      musclesTrained,
+      exercises: workoutExercises,
+      comparison: {
+        volumeChange: 5.2, // Mock: +5.2% volume increase
+        setsChange: 2, // Mock: +2 sets
+      },
+    };
+
+    navigate('/workout-summary', { state: { summaryData } });
   };
 
   const handleDiscardClick = () => {

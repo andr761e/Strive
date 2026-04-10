@@ -4,6 +4,7 @@ import { WorkoutTemplateSelectionPage } from './pages/WorkoutTemplateSelection';
 import { ExerciseSelectionPage } from './pages/ExerciseSelection';
 import { ActiveWorkoutPage } from './pages/ActiveWorkout';
 import { FinishWorkoutPage } from './pages/FinishWorkout';
+import { WorkoutSummaryPage } from './pages/WorkoutSummary';
 import { ProgressPage } from './pages/Progress';
 import { SuggestionsPage } from './pages/Suggestions';
 import { ProfilePage } from './pages/Profile';
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
       { path: 'exercise-selection', Component: ExerciseSelectionPage },
       { path: 'active-workout', Component: ActiveWorkoutPage },
       { path: 'finish-workout', Component: FinishWorkoutPage },
+      { path: 'workout-summary', Component: WorkoutSummaryPage },
       { path: 'manage-routines', Component: ManageRoutinesPage },
       { path: 'edit-routine', Component: EditRoutinePage },
       { path: 'progress', Component: ProgressPage },

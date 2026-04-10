@@ -282,10 +282,10 @@ export const workoutHistory: Workout[] = [
 ];
 
 export const personalRecords = [
-  { exercise: 'Bench Press', weight: 82, reps: 10, date: '2026-03-26' },
-  { exercise: 'Squat', weight: 110, reps: 8, date: '2026-04-02' },
-  { exercise: 'Deadlift', weight: 140, reps: 5, date: '2026-03-20' },
-  { exercise: 'Pull-ups', weight: 10, reps: 8, date: '2026-03-15' },
+  { exercise: 'Bench Press', weight: 82, reps: 10, date: '2026-03-26', improvement: 2, previousBest: 80 },
+  { exercise: 'Squat', weight: 110, reps: 8, date: '2026-04-02', improvement: 5, previousBest: 105 },
+  { exercise: 'Deadlift', weight: 140, reps: 5, date: '2026-03-20', improvement: 10, previousBest: 130 },
+  { exercise: 'Pull-ups', weight: 10, reps: 8, date: '2026-03-15', improvement: 5, previousBest: 5 },
 ];
 
 export const userProfile = {

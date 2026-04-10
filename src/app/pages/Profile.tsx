@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { User, Calendar, TrendingUp, Award, Settings, Target, Edit2 } from 'lucide-react';
+import { User, Calendar, TrendingUp, Award, Settings, Target, Edit2, ArrowUp } from 'lucide-react';
 import { userProfile, workoutHistory, personalRecords, exercises } from '../data/mockData';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
@@ -110,18 +110,29 @@ export function ProfilePage() {
           {prList.map((record, idx) => (
             <div
               key={idx}
-              className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 flex justify-between items-center"
+              className="bg-zinc-900 rounded-lg p-4 border border-zinc-800"
             >
-              <div>
-                <div className="text-white mb-1">{record.exercise}</div>
-                <div className="text-xs text-zinc-500">{record.date}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-xl text-blue-400">
-                  {record.weight > 0 ? `${record.weight} kg` : 'BW'}
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1">
+                  <div className="text-white mb-1">{record.exercise}</div>
+                  <div className="text-xs text-zinc-500">{record.date}</div>
                 </div>
-                <div className="text-xs text-zinc-400">{record.reps} reps</div>
+                <div className="text-right">
+                  <div className="text-xl text-blue-400 mb-1">
+                    {record.weight > 0 ? `${record.weight} kg` : 'BW'}
+                  </div>
+                  <div className="text-xs text-zinc-400">{record.reps} reps</div>
+                </div>
               </div>
+              {(record as any).improvement && (
+                <div className="flex items-center gap-2 pt-2 border-t border-zinc-800">
+                  <ArrowUp className="w-4 h-4 text-green-400" />
+                  <span className="text-sm text-green-400">+{(record as any).improvement} kg</span>
+                  <span className="text-xs text-zinc-500">
+                    (from {(record as any).previousBest} kg)
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </div>
