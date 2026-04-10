@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { TrendingUp, TrendingDown, Minus, Search } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Search, Filter, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { progressDataBenchPress, progressDataSquat, muscleAnalysis, exercises } from '../data/mockData';
+import { progressDataBenchPress, progressDataSquat, muscleAnalysis, exercises, type MuscleGroup } from '../data/mockData';
 import { AnatomicalBodyDiagram } from '../components/AnatomicalBodyDiagram';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
+import { ExerciseThumbnail } from '../components/ExerciseThumbnail';
 
 type TimeRange = '7d' | '30d' | '90d' | 'all';
 
@@ -12,6 +13,16 @@ export function ProgressPage() {
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>('1'); // Default to Bench Press
   const [exerciseSearchOpen, setExerciseSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
+  const [filterMode, setFilterMode] = useState<'tags' | 'diagram'>('tags');
+
+  const muscleGroups: MuscleGroup[] = ['Chest', 'Back', 'Biceps', 'Triceps', 'Quads', 'Hamstrings', 'Delts'];
+
+  const toggleMuscle = (muscle: string) => {
+    setSelectedMuscles((prev) =>
+      prev.includes(muscle) ? prev.filter((m) => m !== muscle) : [...prev, muscle]
+    );
+  };
 
   // Get exercise name from ID
   const selectedExercise = exercises.find(ex => ex.id === selectedExerciseId);
@@ -19,12 +30,21 @@ export function ProgressPage() {
 
   // Mock: Use different data based on exercise (in real app, fetch from API)
   const getProgressDataForExercise = (exerciseId: string) => {
-    if (exerciseId === '1') return progressDataBenchPress;
-    if (exerciseId === '13') return progressDataSquat;
-    // For other exercises, return mock data
-    return progressDataBenchPress.map(item => ({
+    let baseData;
+    if (exerciseId === '1') baseData = progressDataBenchPress;
+    else if (exerciseId === '13') baseData = progressDataSquat;
+    else {
+      // For other exercises, return mock data
+      baseData = progressDataBenchPress.map(item => ({
+        ...item,
+        value: Math.round(item.value * (Math.random() * 0.5 + 0.75)) // Slight variation
+      }));
+    }
+    
+    // Add unique keys to all data points for recharts
+    return baseData.map((item, index) => ({
       ...item,
-      value: item.value * (Math.random() * 0.5 + 0.75) // Slight variation
+      uniqueKey: `${exerciseId}-${item.date}-${index}`, // Unique key for recharts
     }));
   };
 
@@ -44,9 +64,15 @@ export function ProgressPage() {
   };
 
   const filteredData = filterDataByTimeRange(progressData);
-  const filteredExercises = exercises.filter(ex => 
-    ex.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  
+  // Filter exercises by search and muscle groups
+  const filteredExercises = exercises.filter((ex) => {
+    const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesMuscle =
+      selectedMuscles.length === 0 ||
+      ex.mainMuscles.some((m) => selectedMuscles.includes(m));
+    return matchesSearch && matchesMuscle;
+  });
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white pb-20">
@@ -92,7 +118,7 @@ export function ProgressPage() {
         <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-800">
           <h2 className="text-lg mb-4">{exerciseName} Progress</h2>
           <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={filteredData}>
+            <LineChart data={filteredData} key={selectedExerciseId}>
               <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
               <XAxis
                 dataKey="date"
@@ -119,6 +145,7 @@ export function ProgressPage() {
                 strokeWidth={2}
                 dot={{ fill: '#3b82f6', r: 4 }}
                 activeDot={{ r: 6 }}
+                key={`line-${selectedExerciseId}`}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -233,15 +260,75 @@ export function ProgressPage() {
         <DialogContent className="bg-zinc-900 text-white border-zinc-800 max-w-md max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Select Exercise</DialogTitle>
+            <DialogDescription>
+              Search and filter exercises to view progress data
+            </DialogDescription>
           </DialogHeader>
+          
+          {/* Search */}
           <input
             type="text"
             placeholder="Search exercises..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white placeholder:text-zinc-500 mb-3"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white placeholder:text-zinc-500"
           />
-          <div className="space-y-2 overflow-y-auto flex-1">
+
+          {/* Filter Mode Switcher */}
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={() => setFilterMode('tags')}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm transition-colors ${
+                filterMode === 'tags'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+              }`}
+            >
+              Muscle Tags
+            </button>
+            <button
+              onClick={() => setFilterMode('diagram')}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm transition-colors ${
+                filterMode === 'diagram'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+              }`}
+            >
+              Body Diagram
+            </button>
+          </div>
+
+          {/* Muscle Group Tags */}
+          {filterMode === 'tags' && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {muscleGroups.map((muscle) => (
+                <button
+                  key={muscle}
+                  onClick={() => toggleMuscle(muscle)}
+                  className={`px-3 py-1.5 rounded-full text-xs transition-colors ${
+                    selectedMuscles.includes(muscle)
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                  }`}
+                >
+                  {muscle}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Body Diagram */}
+          {filterMode === 'diagram' && (
+            <div className="mt-3">
+              <AnatomicalBodyDiagram
+                onMuscleSelect={toggleMuscle}
+                selectedMuscles={selectedMuscles}
+              />
+            </div>
+          )}
+
+          {/* Exercise List */}
+          <div className="space-y-2 overflow-y-auto flex-1 mt-3">
             {filteredExercises.map((ex) => (
               <button
                 key={ex.id}
@@ -249,27 +336,31 @@ export function ProgressPage() {
                   setSelectedExerciseId(ex.id);
                   setExerciseSearchOpen(false);
                   setSearchQuery('');
+                  setSelectedMuscles([]);
                 }}
-                className={`w-full p-3 rounded-lg text-left transition-colors ${
+                className={`w-full p-3 rounded-lg text-left transition-colors flex items-center gap-3 ${
                   ex.id === selectedExerciseId
                     ? 'bg-blue-600 text-white'
                     : 'bg-zinc-800 hover:bg-zinc-700 text-white'
                 }`}
               >
-                <div className="mb-1">{ex.name}</div>
-                <div className="flex gap-2">
-                  {ex.mainMuscles.map((muscle) => (
-                    <span
-                      key={muscle}
-                      className={`text-xs px-2 py-0.5 rounded ${
-                        ex.id === selectedExerciseId
-                          ? 'bg-blue-700 text-white'
-                          : 'bg-zinc-900 text-blue-400'
-                      }`}
-                    >
-                      {muscle}
-                    </span>
-                  ))}
+                <ExerciseThumbnail exercise={ex} size="sm" />
+                <div className="flex-1">
+                  <div className="mb-1">{ex.name}</div>
+                  <div className="flex gap-2">
+                    {ex.mainMuscles.map((muscle) => (
+                      <span
+                        key={muscle}
+                        className={`text-xs px-2 py-0.5 rounded ${
+                          ex.id === selectedExerciseId
+                            ? 'bg-blue-700 text-white'
+                            : 'bg-zinc-900 text-blue-400'
+                        }`}
+                      >
+                        {muscle}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </button>
             ))}

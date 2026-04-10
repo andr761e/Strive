@@ -11,8 +11,8 @@ export function Layout() {
     document.documentElement.classList.add('dark');
   }, []);
   
-  // Hide bottom nav on exercise selection, active workout, and manage routines pages
-  const hideBottomNav = ['/exercise-selection', '/active-workout', '/manage-routines'].includes(location.pathname);
+  // Hide bottom nav on exercise selection, active workout, manage routines, settings, and finish workout pages
+  const hideBottomNav = ['/exercise-selection', '/active-workout', '/manage-routines', '/settings', '/finish-workout'].includes(location.pathname);
 
   return (
     <div className="min-h-screen bg-zinc-950">

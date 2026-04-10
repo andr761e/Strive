@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { Search, Filter, ArrowLeft, Plus } from 'lucide-react';
+import { Search, Filter, ArrowLeft, Plus, Check } from 'lucide-react';
 import { exercises, type Exercise, type MuscleGroup } from '../data/mockData';
 import { AnatomicalBodyDiagram } from '../components/AnatomicalBodyDiagram';
+import { ExerciseThumbnail } from '../components/ExerciseThumbnail';
 
 export function ExerciseSelectionPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const template = (location.state as any)?.template;
+  const fromActiveWorkout = (location.state as any)?.fromActiveWorkout;
+  const fromEditRoutine = (location.state as any)?.fromEditRoutine;
+  const currentExercises = (location.state as any)?.currentExercises || [];
+  const routine = (location.state as any)?.routine;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMuscles, setSelectedMuscles] = useState<string[]>([]);
@@ -38,13 +43,49 @@ export function ExerciseSelectionPage() {
     const matchesMuscle =
       selectedMuscles.length === 0 ||
       ex.mainMuscles.some((m) => selectedMuscles.includes(m));
-    return matchesSearch && matchesMuscle;
+    // If coming from active workout or routine builder, exclude exercises already added
+    const notAlreadyAdded = (!fromActiveWorkout && !fromEditRoutine) || !currentExercises.includes(ex.id);
+    return matchesSearch && matchesMuscle && notAlreadyAdded;
   });
 
   const startWorkout = () => {
     if (selectedExercises.length > 0) {
-      navigate('/active-workout', { state: { exercises: selectedExercises } });
+      if (fromActiveWorkout) {
+        // Return to active workout with new exercises
+        navigate('/active-workout', { 
+          state: { 
+            addExercises: selectedExercises 
+          } 
+        });
+      } else if (fromEditRoutine) {
+        // Return to routine builder with new exercises
+        navigate('/edit-routine', { 
+          state: { 
+            routine,
+            addExercises: selectedExercises 
+          } 
+        });
+      } else {
+        // Start new workout
+        navigate('/active-workout', { state: { exercises: selectedExercises } });
+      }
     }
+  };
+
+  const getBackPath = () => {
+    if (fromActiveWorkout) return '/active-workout';
+    if (fromEditRoutine) return '/edit-routine';
+    return '/';
+  };
+
+  const getTitle = () => {
+    if (fromActiveWorkout || fromEditRoutine) return 'Add Exercises';
+    return 'Select Exercises';
+  };
+
+  const getButtonLabel = () => {
+    if (fromActiveWorkout || fromEditRoutine) return `Add (${selectedExercises.length})`;
+    return `Start (${selectedExercises.length})`;
   };
 
   return (
@@ -52,16 +93,21 @@ export function ExerciseSelectionPage() {
       {/* Header */}
       <div className="sticky top-0 bg-zinc-950 border-b border-zinc-800 z-10">
         <div className="px-4 py-4 flex items-center gap-3">
-          <button onClick={() => navigate('/')} className="text-zinc-400">
+          <button 
+            onClick={() => navigate(getBackPath(), fromEditRoutine ? { state: { routine } } : undefined)} 
+            className="text-zinc-400"
+          >
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-xl flex-1">Select Exercises</h1>
+          <h1 className="text-xl flex-1">
+            {getTitle()}
+          </h1>
           {selectedExercises.length > 0 && (
             <button
               onClick={startWorkout}
               className="bg-blue-600 px-4 py-2 rounded-lg text-sm"
             >
-              Start ({selectedExercises.length})
+              {getButtonLabel()}
             </button>
           )}
         </div>
@@ -138,8 +184,9 @@ export function ExerciseSelectionPage() {
           return (
             <div
               key={exercise.id}
-              className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 flex items-start justify-between"
+              className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 flex items-start gap-3"
             >
+              <ExerciseThumbnail exercise={exercise} size="md" />
               <div className="flex-1">
                 <h3 className="text-white mb-1">{exercise.name}</h3>
                 <div className="flex flex-wrap gap-2 mb-2">
@@ -158,13 +205,13 @@ export function ExerciseSelectionPage() {
               </div>
               <button
                 onClick={() => toggleExercise(exercise)}
-                className={`ml-3 p-2 rounded-lg transition-colors ${
+                className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
                   isSelected
                     ? 'bg-green-600 text-white'
                     : 'bg-blue-600 hover:bg-blue-700 text-white'
                 }`}
               >
-                <Plus className="w-5 h-5" />
+                {isSelected ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
               </button>
             </div>
           );

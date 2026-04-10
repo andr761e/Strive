@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Plus, Calendar, Dumbbell, Settings } from 'lucide-react';
-import { workoutTemplates, getPreviousWorkoutData, type Exercise } from '../data/mockData';
+import { workoutTemplates, getPreviousWorkoutData, type Exercise, type ExerciseLog } from '../data/mockData';
 import { format } from 'date-fns';
 
 export function WorkoutTemplateSelectionPage() {
@@ -9,11 +9,43 @@ export function WorkoutTemplateSelectionPage() {
   const selectTemplate = (templateId: string) => {
     const template = workoutTemplates.find(t => t.id === templateId);
     if (template) {
-      // Go directly to active workout instead of exercise selection
+      // If template has full set structure (exerciseLogs), convert to ExerciseLog format
+      let exerciseLogs: ExerciseLog[] = [];
+      
+      if (template.exerciseLogs && template.exerciseLogs.length > 0) {
+        // Template has full set structure - use it
+        exerciseLogs = template.exerciseLogs.map(log => ({
+          exerciseId: log.exerciseId,
+          exerciseName: log.exerciseName,
+          mainMuscles: log.mainMuscles,
+          sets: log.sets.map((set, idx) => ({
+            setNumber: idx + 1,
+            weight: set.weight,
+            reps: set.reps,
+            rir: set.rir,
+            type: set.type,
+            completed: false,
+          })),
+          previousSets: getPreviousWorkoutData(log.exerciseId) || undefined,
+        }));
+      } else {
+        // Old template format - just exercises list, create empty sets
+        exerciseLogs = template.exercises.map(ex => ({
+          exerciseId: ex.id,
+          exerciseName: ex.name,
+          mainMuscles: ex.mainMuscles,
+          sets: [],
+          previousSets: getPreviousWorkoutData(ex.id) || undefined,
+        }));
+      }
+
+      // Go to active workout with routine info
       navigate('/active-workout', { 
         state: { 
-          exercises: template.exercises,
-          workoutName: template.name
+          exercises: exerciseLogs,
+          workoutName: template.name,
+          routineId: template.id,
+          routineName: template.name,
         } 
       });
     }

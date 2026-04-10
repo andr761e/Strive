@@ -8,7 +8,9 @@ interface WorkoutContextType {
   elapsedSeconds: number;
   workoutExercises: ExerciseLog[];
   isMinimized: boolean;
-  startWorkout: (name: string, exercises: ExerciseLog[]) => void;
+  routineId: string | null;
+  routineName: string | null;
+  startWorkout: (name: string, exercises: ExerciseLog[], routineId?: string, routineName?: string) => void;
   finishWorkout: () => void;
   discardWorkout: () => void;
   minimizeWorkout: () => void;
@@ -25,6 +27,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [workoutExercises, setWorkoutExercises] = useState<ExerciseLog[]>([]);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [routineId, setRoutineId] = useState<string | null>(null);
+  const [routineName, setRoutineName] = useState<string | null>(null);
 
   // Timer effect
   useEffect(() => {
@@ -39,13 +43,15 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     }
   }, [isWorkoutActive, workoutStartTime]);
 
-  const startWorkout = (name: string, exercises: ExerciseLog[]) => {
+  const startWorkout = (name: string, exercises: ExerciseLog[], routineId?: string, routineName?: string) => {
     setWorkoutName(name);
     setWorkoutExercises(exercises);
     setWorkoutStartTime(new Date());
     setElapsedSeconds(0);
     setIsWorkoutActive(true);
     setIsMinimized(false);
+    setRoutineId(routineId || null);
+    setRoutineName(routineName || null);
   };
 
   const finishWorkout = () => {
@@ -56,6 +62,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setElapsedSeconds(0);
     setWorkoutExercises([]);
     setIsMinimized(false);
+    setRoutineId(null);
+    setRoutineName(null);
   };
 
   const discardWorkout = () => {
@@ -65,6 +73,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setElapsedSeconds(0);
     setWorkoutExercises([]);
     setIsMinimized(false);
+    setRoutineId(null);
+    setRoutineName(null);
   };
 
   const minimizeWorkout = () => {
@@ -88,6 +98,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         elapsedSeconds,
         workoutExercises,
         isMinimized,
+        routineId,
+        routineName,
         startWorkout,
         finishWorkout,
         discardWorkout,

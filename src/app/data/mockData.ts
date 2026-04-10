@@ -1,12 +1,4 @@
-export type MuscleGroup = 'Chest' | 'Back' | 'Biceps' | 'Triceps' | 'Quads' | 'Hamstrings' | 'Delts' | 'Glutes' | 'Calves' | 'Abs' | 'Forearms';
-
-export interface Exercise {
-  id: string;
-  name: string;
-  mainMuscles: MuscleGroup[];
-  equipment?: string;
-  category: string;
-}
+export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
 
 export interface WorkoutSet {
   setNumber: number;
@@ -16,6 +8,7 @@ export interface WorkoutSet {
   previousWeight?: number;
   previousReps?: number;
   completed?: boolean;  // Track if set is completed/locked
+  type?: SetType;  // Set type (normal, warmup, drop, failure)
 }
 
 export interface ExerciseLog {
@@ -39,7 +32,22 @@ export interface WorkoutTemplate {
   id: string;
   name: string;
   exercises: Exercise[];
+  exerciseLogs?: TemplateExerciseLog[];  // New: Store full set structure
   lastPerformed?: Date;
+}
+
+export interface TemplateExerciseLog {
+  exerciseId: string;
+  exerciseName: string;
+  mainMuscles: MuscleGroup[];
+  sets: TemplateSet[];
+}
+
+export interface TemplateSet {
+  type: SetType;
+  weight: number;
+  reps: number;
+  rir?: number;
 }
 
 export interface ProgressData {
@@ -57,36 +65,36 @@ export interface Suggestion {
 }
 
 export const exercises: Exercise[] = [
-  { id: '1', name: 'Barbell Bench Press', mainMuscles: ['Chest', 'Triceps'], equipment: 'Barbell', category: 'Compound' },
-  { id: '2', name: 'Incline Dumbbell Press', mainMuscles: ['Chest', 'Delts'], equipment: 'Dumbbell', category: 'Compound' },
-  { id: '3', name: 'Cable Fly', mainMuscles: ['Chest'], equipment: 'Cable', category: 'Isolation' },
-  { id: '4', name: 'Pull-ups', mainMuscles: ['Back', 'Biceps'], equipment: 'Bodyweight', category: 'Compound' },
-  { id: '5', name: 'Barbell Row', mainMuscles: ['Back'], equipment: 'Barbell', category: 'Compound' },
-  { id: '6', name: 'Lat Pulldown', mainMuscles: ['Back', 'Biceps'], equipment: 'Cable', category: 'Compound' },
-  { id: '7', name: 'Deadlift', mainMuscles: ['Back', 'Hamstrings', 'Glutes'], equipment: 'Barbell', category: 'Compound' },
-  { id: '8', name: 'Barbell Curl', mainMuscles: ['Biceps'], equipment: 'Barbell', category: 'Isolation' },
-  { id: '9', name: 'Hammer Curl', mainMuscles: ['Biceps', 'Forearms'], equipment: 'Dumbbell', category: 'Isolation' },
-  { id: '10', name: 'Close-Grip Bench Press', mainMuscles: ['Triceps', 'Chest'], equipment: 'Barbell', category: 'Compound' },
-  { id: '11', name: 'Tricep Pushdown', mainMuscles: ['Triceps'], equipment: 'Cable', category: 'Isolation' },
-  { id: '12', name: 'Overhead Tricep Extension', mainMuscles: ['Triceps'], equipment: 'Dumbbell', category: 'Isolation' },
-  { id: '13', name: 'Squat', mainMuscles: ['Quads', 'Glutes'], equipment: 'Barbell', category: 'Compound' },
-  { id: '14', name: 'Leg Press', mainMuscles: ['Quads', 'Glutes'], equipment: 'Machine', category: 'Compound' },
-  { id: '15', name: 'Leg Extension', mainMuscles: ['Quads'], equipment: 'Machine', category: 'Isolation' },
-  { id: '16', name: 'Romanian Deadlift', mainMuscles: ['Hamstrings', 'Glutes'], equipment: 'Barbell', category: 'Compound' },
-  { id: '17', name: 'Leg Curl', mainMuscles: ['Hamstrings'], equipment: 'Machine', category: 'Isolation' },
-  { id: '18', name: 'Overhead Press', mainMuscles: ['Delts', 'Triceps'], equipment: 'Barbell', category: 'Compound' },
-  { id: '19', name: 'Lateral Raise', mainMuscles: ['Delts'], equipment: 'Dumbbell', category: 'Isolation' },
-  { id: '20', name: 'Face Pull', mainMuscles: ['Delts', 'Back'], equipment: 'Cable', category: 'Isolation' },
-  { id: '21', name: 'Dumbbell Bench Press', mainMuscles: ['Chest', 'Triceps'], equipment: 'Dumbbell', category: 'Compound' },
-  { id: '22', name: 'Chest Dips', mainMuscles: ['Chest', 'Triceps'], equipment: 'Bodyweight', category: 'Compound' },
-  { id: '23', name: 'Cable Crossover', mainMuscles: ['Chest'], equipment: 'Cable', category: 'Isolation' },
-  { id: '24', name: 'T-Bar Row', mainMuscles: ['Back'], equipment: 'Barbell', category: 'Compound' },
-  { id: '25', name: 'Chin-ups', mainMuscles: ['Back', 'Biceps'], equipment: 'Bodyweight', category: 'Compound' },
-  { id: '26', name: 'Preacher Curl', mainMuscles: ['Biceps'], equipment: 'Machine', category: 'Isolation' },
-  { id: '27', name: 'Skull Crushers', mainMuscles: ['Triceps'], equipment: 'Barbell', category: 'Isolation' },
-  { id: '28', name: 'Front Squat', mainMuscles: ['Quads', 'Glutes'], equipment: 'Barbell', category: 'Compound' },
-  { id: '29', name: 'Bulgarian Split Squat', mainMuscles: ['Quads', 'Glutes'], equipment: 'Dumbbell', category: 'Compound' },
-  { id: '30', name: 'Hip Thrust', mainMuscles: ['Glutes', 'Hamstrings'], equipment: 'Barbell', category: 'Compound' },
+  { id: '1', name: 'Barbell Bench Press', mainMuscles: ['Chest', 'Triceps'], equipment: 'Barbell', category: 'Compound', loggingGuidance: 'Log total barbell weight including the bar (typically 20kg)' },
+  { id: '2', name: 'Incline Dumbbell Press', mainMuscles: ['Chest', 'Delts'], equipment: 'Dumbbell', category: 'Compound', loggingGuidance: 'Log the weight of one dumbbell only' },
+  { id: '3', name: 'Cable Fly', mainMuscles: ['Chest'], equipment: 'Cable', category: 'Isolation', loggingGuidance: 'Log the total weight selected on the machine stack' },
+  { id: '4', name: 'Pull-ups', mainMuscles: ['Back', 'Biceps'], equipment: 'Bodyweight', category: 'Compound', loggingGuidance: 'Log added weight only. Use 0 for bodyweight' },
+  { id: '5', name: 'Barbell Row', mainMuscles: ['Back'], equipment: 'Barbell', category: 'Compound', loggingGuidance: 'Log total barbell weight including the bar' },
+  { id: '6', name: 'Lat Pulldown', mainMuscles: ['Back', 'Biceps'], equipment: 'Cable', category: 'Compound', loggingGuidance: 'Log the weight selected on the machine stack' },
+  { id: '7', name: 'Deadlift', mainMuscles: ['Back', 'Hamstrings', 'Glutes'], equipment: 'Barbell', category: 'Compound', loggingGuidance: 'Log total barbell weight including the bar' },
+  { id: '8', name: 'Barbell Curl', mainMuscles: ['Biceps'], equipment: 'Barbell', category: 'Isolation', loggingGuidance: 'Log total barbell weight including the bar' },
+  { id: '9', name: 'Hammer Curl', mainMuscles: ['Biceps', 'Forearms'], equipment: 'Dumbbell', category: 'Isolation', loggingGuidance: 'Log the weight of one dumbbell only' },
+  { id: '10', name: 'Close-Grip Bench Press', mainMuscles: ['Triceps', 'Chest'], equipment: 'Barbell', category: 'Compound', loggingGuidance: 'Log total barbell weight including the bar' },
+  { id: '11', name: 'Tricep Pushdown', mainMuscles: ['Triceps'], equipment: 'Cable', category: 'Isolation', loggingGuidance: 'Log the weight selected on the machine stack' },
+  { id: '12', name: 'Overhead Tricep Extension', mainMuscles: ['Triceps'], equipment: 'Dumbbell', category: 'Isolation', loggingGuidance: 'Log total dumbbell weight (both hands together) or single dumbbell weight if using one' },
+  { id: '13', name: 'Squat', mainMuscles: ['Quads', 'Glutes'], equipment: 'Barbell', category: 'Compound', loggingGuidance: 'Log total barbell weight including the bar' },
+  { id: '14', name: 'Leg Press', mainMuscles: ['Quads', 'Glutes'], equipment: 'Machine', category: 'Compound', loggingGuidance: 'Log only the plate weight added, not the sled base weight' },
+  { id: '15', name: 'Leg Extension', mainMuscles: ['Quads'], equipment: 'Machine', category: 'Isolation', loggingGuidance: 'Log the weight selected on the machine stack' },
+  { id: '16', name: 'Romanian Deadlift', mainMuscles: ['Hamstrings', 'Glutes'], equipment: 'Barbell', category: 'Compound', loggingGuidance: 'Log total barbell weight including the bar' },
+  { id: '17', name: 'Leg Curl', mainMuscles: ['Hamstrings'], equipment: 'Machine', category: 'Isolation', loggingGuidance: 'Log the weight selected on the machine stack' },
+  { id: '18', name: 'Overhead Press', mainMuscles: ['Delts', 'Triceps'], equipment: 'Barbell', category: 'Compound', loggingGuidance: 'Log total barbell weight including the bar' },
+  { id: '19', name: 'Lateral Raise', mainMuscles: ['Delts'], equipment: 'Dumbbell', category: 'Isolation', loggingGuidance: 'Log the weight of one dumbbell only' },
+  { id: '20', name: 'Face Pull', mainMuscles: ['Delts', 'Back'], equipment: 'Cable', category: 'Isolation', loggingGuidance: 'Log the weight selected on the machine stack' },
+  { id: '21', name: 'Dumbbell Bench Press', mainMuscles: ['Chest', 'Triceps'], equipment: 'Dumbbell', category: 'Compound', loggingGuidance: 'Log the weight of one dumbbell only' },
+  { id: '22', name: 'Chest Dips', mainMuscles: ['Chest', 'Triceps'], equipment: 'Bodyweight', category: 'Compound', loggingGuidance: 'Log added weight only. Use 0 for bodyweight' },
+  { id: '23', name: 'Cable Crossover', mainMuscles: ['Chest'], equipment: 'Cable', category: 'Isolation', loggingGuidance: 'Log the total weight (both cables combined)' },
+  { id: '24', name: 'T-Bar Row', mainMuscles: ['Back'], equipment: 'Barbell', category: 'Compound', loggingGuidance: 'Log only the plate weight added, not the bar weight' },
+  { id: '25', name: 'Chin-ups', mainMuscles: ['Back', 'Biceps'], equipment: 'Bodyweight', category: 'Compound', loggingGuidance: 'Log added weight only. Use 0 for bodyweight' },
+  { id: '26', name: 'Preacher Curl', mainMuscles: ['Biceps'], equipment: 'Machine', category: 'Isolation', loggingGuidance: 'Log the weight selected on the machine stack' },
+  { id: '27', name: 'Skull Crushers', mainMuscles: ['Triceps'], equipment: 'Barbell', category: 'Isolation', loggingGuidance: 'Log total weight including the bar or EZ bar' },
+  { id: '28', name: 'Front Squat', mainMuscles: ['Quads', 'Glutes'], equipment: 'Barbell', category: 'Compound', loggingGuidance: 'Log total barbell weight including the bar' },
+  { id: '29', name: 'Bulgarian Split Squat', mainMuscles: ['Quads', 'Glutes'], equipment: 'Dumbbell', category: 'Compound', loggingGuidance: 'Log the weight of one dumbbell only' },
+  { id: '30', name: 'Hip Thrust', mainMuscles: ['Glutes', 'Hamstrings'], equipment: 'Barbell', category: 'Compound', loggingGuidance: 'Log total barbell weight including the bar' },
 ];
 
 export const lastWorkout: Workout = {
@@ -302,6 +310,60 @@ export const workoutTemplates: WorkoutTemplate[] = [
       exercises.find(e => e.id === '19')!, // Lateral Raise
       exercises.find(e => e.id === '11')!, // Tricep Pushdown
     ],
+    exerciseLogs: [
+      {
+        exerciseId: '1',
+        exerciseName: 'Barbell Bench Press',
+        mainMuscles: ['Chest', 'Triceps'],
+        sets: [
+          { type: 'warmup', weight: 60, reps: 10, rir: 5 },
+          { type: 'normal', weight: 80, reps: 10, rir: 2 },
+          { type: 'normal', weight: 80, reps: 9, rir: 1 },
+          { type: 'normal', weight: 80, reps: 8, rir: 0 },
+        ],
+      },
+      {
+        exerciseId: '2',
+        exerciseName: 'Incline Dumbbell Press',
+        mainMuscles: ['Chest', 'Delts'],
+        sets: [
+          { type: 'normal', weight: 32, reps: 10, rir: 2 },
+          { type: 'normal', weight: 32, reps: 9, rir: 1 },
+          { type: 'normal', weight: 32, reps: 8, rir: 0 },
+        ],
+      },
+      {
+        exerciseId: '18',
+        exerciseName: 'Overhead Press',
+        mainMuscles: ['Delts', 'Triceps'],
+        sets: [
+          { type: 'normal', weight: 50, reps: 10, rir: 2 },
+          { type: 'normal', weight: 50, reps: 9, rir: 1 },
+          { type: 'normal', weight: 50, reps: 8, rir: 1 },
+        ],
+      },
+      {
+        exerciseId: '19',
+        exerciseName: 'Lateral Raise',
+        mainMuscles: ['Delts'],
+        sets: [
+          { type: 'normal', weight: 12, reps: 15, rir: 2 },
+          { type: 'normal', weight: 12, reps: 14, rir: 1 },
+          { type: 'normal', weight: 12, reps: 12, rir: 0 },
+          { type: 'drop', weight: 8, reps: 15, rir: 0 },
+        ],
+      },
+      {
+        exerciseId: '11',
+        exerciseName: 'Tricep Pushdown',
+        mainMuscles: ['Triceps'],
+        sets: [
+          { type: 'normal', weight: 40, reps: 12, rir: 2 },
+          { type: 'normal', weight: 40, reps: 11, rir: 1 },
+          { type: 'normal', weight: 40, reps: 10, rir: 0 },
+        ],
+      },
+    ],
     lastPerformed: new Date('2026-04-04'),
   },
   {
@@ -314,6 +376,59 @@ export const workoutTemplates: WorkoutTemplate[] = [
       exercises.find(e => e.id === '8')!,  // Barbell Curl
       exercises.find(e => e.id === '20')!, // Face Pull
     ],
+    exerciseLogs: [
+      {
+        exerciseId: '7',
+        exerciseName: 'Deadlift',
+        mainMuscles: ['Back', 'Hamstrings', 'Glutes'],
+        sets: [
+          { type: 'warmup', weight: 100, reps: 5, rir: 5 },
+          { type: 'normal', weight: 140, reps: 5, rir: 2 },
+          { type: 'normal', weight: 140, reps: 5, rir: 1 },
+          { type: 'normal', weight: 140, reps: 5, rir: 0 },
+        ],
+      },
+      {
+        exerciseId: '4',
+        exerciseName: 'Pull-ups',
+        mainMuscles: ['Back', 'Biceps'],
+        sets: [
+          { type: 'normal', weight: 0, reps: 12, rir: 2 },
+          { type: 'normal', weight: 0, reps: 10, rir: 1 },
+          { type: 'normal', weight: 0, reps: 8, rir: 0 },
+        ],
+      },
+      {
+        exerciseId: '5',
+        exerciseName: 'Barbell Row',
+        mainMuscles: ['Back'],
+        sets: [
+          { type: 'normal', weight: 70, reps: 10, rir: 2 },
+          { type: 'normal', weight: 70, reps: 9, rir: 1 },
+          { type: 'normal', weight: 70, reps: 8, rir: 1 },
+        ],
+      },
+      {
+        exerciseId: '8',
+        exerciseName: 'Barbell Curl',
+        mainMuscles: ['Biceps'],
+        sets: [
+          { type: 'normal', weight: 35, reps: 12, rir: 2 },
+          { type: 'normal', weight: 35, reps: 10, rir: 1 },
+          { type: 'normal', weight: 35, reps: 9, rir: 0 },
+        ],
+      },
+      {
+        exerciseId: '20',
+        exerciseName: 'Face Pull',
+        mainMuscles: ['Delts', 'Back'],
+        sets: [
+          { type: 'normal', weight: 30, reps: 15, rir: 2 },
+          { type: 'normal', weight: 30, reps: 14, rir: 1 },
+          { type: 'normal', weight: 30, reps: 13, rir: 1 },
+        ],
+      },
+    ],
     lastPerformed: new Date('2026-04-02'),
   },
   {
@@ -325,6 +440,59 @@ export const workoutTemplates: WorkoutTemplate[] = [
       exercises.find(e => e.id === '15')!, // Leg Extension
       exercises.find(e => e.id === '17')!, // Leg Curl
       exercises.find(e => e.id === '30')!, // Hip Thrust
+    ],
+    exerciseLogs: [
+      {
+        exerciseId: '13',
+        exerciseName: 'Squat',
+        mainMuscles: ['Quads', 'Glutes'],
+        sets: [
+          { type: 'warmup', weight: 80, reps: 8, rir: 5 },
+          { type: 'normal', weight: 110, reps: 8, rir: 2 },
+          { type: 'normal', weight: 110, reps: 7, rir: 1 },
+          { type: 'normal', weight: 110, reps: 6, rir: 0 },
+        ],
+      },
+      {
+        exerciseId: '16',
+        exerciseName: 'Romanian Deadlift',
+        mainMuscles: ['Hamstrings', 'Glutes'],
+        sets: [
+          { type: 'normal', weight: 90, reps: 10, rir: 2 },
+          { type: 'normal', weight: 90, reps: 9, rir: 1 },
+          { type: 'normal', weight: 90, reps: 8, rir: 1 },
+        ],
+      },
+      {
+        exerciseId: '15',
+        exerciseName: 'Leg Extension',
+        mainMuscles: ['Quads'],
+        sets: [
+          { type: 'normal', weight: 60, reps: 12, rir: 2 },
+          { type: 'normal', weight: 60, reps: 11, rir: 1 },
+          { type: 'normal', weight: 60, reps: 10, rir: 0 },
+        ],
+      },
+      {
+        exerciseId: '17',
+        exerciseName: 'Leg Curl',
+        mainMuscles: ['Hamstrings'],
+        sets: [
+          { type: 'normal', weight: 50, reps: 12, rir: 2 },
+          { type: 'normal', weight: 50, reps: 11, rir: 1 },
+          { type: 'normal', weight: 50, reps: 10, rir: 1 },
+        ],
+      },
+      {
+        exerciseId: '30',
+        exerciseName: 'Hip Thrust',
+        mainMuscles: ['Glutes', 'Hamstrings'],
+        sets: [
+          { type: 'normal', weight: 100, reps: 12, rir: 2 },
+          { type: 'normal', weight: 100, reps: 11, rir: 1 },
+          { type: 'normal', weight: 100, reps: 10, rir: 1 },
+        ],
+      },
     ],
     lastPerformed: new Date('2026-03-31'),
   },

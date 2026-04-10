@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { User, Calendar, TrendingUp, Award, Settings, Target, Edit2 } from 'lucide-react';
 import { userProfile, workoutHistory, personalRecords, exercises } from '../data/mockData';
 import { format } from 'date-fns';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 
 export function ProfilePage() {
+  const navigate = useNavigate();
   const [prList, setPrList] = useState(personalRecords);
   const [editPRDialogOpen, setEditPRDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -183,7 +185,10 @@ export function ProfilePage() {
 
       {/* Settings */}
       <div className="px-4 py-2 mb-6">
-        <button className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl p-4 flex items-center justify-between transition-colors">
+        <button 
+          onClick={() => navigate('/settings')}
+          className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl p-4 flex items-center justify-between transition-colors"
+        >
           <div className="flex items-center gap-3">
             <Settings className="w-5 h-5 text-zinc-400" />
             <span className="text-white">Settings & Preferences</span>
@@ -197,13 +202,12 @@ export function ProfilePage() {
         <DialogContent className="bg-zinc-900 text-white border-zinc-800 max-w-md max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Customize Personal Records</DialogTitle>
+            <DialogDescription>
+              Select exercises to track as your personal records. You can add or remove exercises.
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-3">
-            <p className="text-sm text-zinc-400">
-              Select exercises to track as your personal records. You can add or remove exercises.
-            </p>
-
             {/* Current PRs */}
             {prList.length > 0 && (
               <div>
