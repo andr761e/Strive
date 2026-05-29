@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter, Navigate } from 'react-router';
 import { HomePage } from './pages/Home';
 import { WorkoutTemplateSelectionPage } from './pages/WorkoutTemplateSelection';
 import { ExerciseSelectionPage } from './pages/ExerciseSelection';
@@ -12,6 +12,24 @@ import { ManageRoutinesPage } from './pages/ManageRoutines';
 import { EditRoutinePage } from './pages/EditRoutine';
 import { SettingsPage } from './pages/Settings';
 import { Layout } from './Layout';
+import { LoginPage } from './pages/Login';
+import { SignupPage } from './pages/Signup';
+import { AuthLoadingPage } from './pages/AuthLoading';
+import { useAuth } from './contexts/AuthContext';
+
+function ProtectedLayout() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <AuthLoadingPage />;
+  }
+
+  if (!user) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  return <Layout />;
+}
 
 export const router = createBrowserRouter([
   {
