@@ -1,16 +1,31 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Save, XCircle, Clock, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Save, XCircle, Clock, TrendingUp, Dumbbell, CheckCircle2, ClipboardList } from 'lucide-react';
 import { useWorkout } from '../contexts/WorkoutContext';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 import { ExerciseThumbnail } from '../components/ExerciseThumbnail';
-import { InfoModal } from '../components/InfoModal';
-import { exercises } from '../data/mockData';
+import { exercises, getExerciseLogging, type ExerciseLog, type LoggingFieldKey, type WorkoutSet } from '../data/mockData';
+import { useAuth } from '../contexts/AuthContext';
+import { useSettings } from '../contexts/SettingsContext';
+import { DataService } from '../services/db';
+import { schedulePostWorkoutReminders } from '../services/notifications';
+import { getWorkoutRankProgressItems } from '../features/exercise-ranks';
 
 export function FinishWorkoutPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { workoutReminders } = useSettings();
   const { workoutName, workoutExercises, elapsedSeconds, finishWorkout, discardWorkout, routineId, routineName } = useWorkout();
-  
+
   const [notes, setNotes] = useState('');
   const [sessionFeeling, setSessionFeeling] = useState<number | null>(null);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
@@ -20,12 +35,22 @@ export function FinishWorkoutPage() {
   const [validationTitle, setValidationTitle] = useState('');
   const [uncompletedSetsDialogOpen, setUncompletedSetsDialogOpen] = useState(false);
   const [routineUpdateDialogOpen, setRoutineUpdateDialogOpen] = useState(false);
+  const [saveAsRoutine, setSaveAsRoutine] = useState(false);
+  const [newRoutineName, setNewRoutineName] = useState(() =>
+    workoutName && workoutName !== 'Active Workout' ? `${workoutName} Routine` : 'New Routine',
+  );
+  const [pendingRoutineUpdate, setPendingRoutineUpdate] = useState<{
+    routineId: string;
+    routineName: string | null;
+    exercises: ExerciseLog[];
+  } | null>(null);
+  const [pendingSummaryData, setPendingSummaryData] = useState<any>(null);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
@@ -33,84 +58,199 @@ export function FinishWorkoutPage() {
   };
 
   const totalSets = workoutExercises.reduce((acc, ex) => acc + ex.sets.length, 0);
-  const completedSets = workoutExercises.reduce((acc, ex) => 
-    acc + ex.sets.filter(set => set.completed).length, 0
+  const completedSets = workoutExercises.reduce((acc, ex) => acc + ex.sets.filter((set) => set.completed).length, 0);
+  const totalWeightLifted = workoutExercises.reduce(
+    (acc, exercise) => acc + exercise.sets.reduce((setAcc, set) => setAcc + set.weight * set.reps, 0),
+    0,
   );
 
+  const summaryStats = [
+    {
+      label: 'Duration',
+      value: formatTime(elapsedSeconds),
+      icon: Clock,
+      color: 'text-blue-400',
+    },
+    {
+      label: 'Total Sets',
+      value: totalSets.toString(),
+      icon: TrendingUp,
+      color: 'text-green-400',
+    },
+    {
+      label: 'Completed',
+      value: `${completedSets}/${totalSets}`,
+      icon: CheckCircle2,
+      color: 'text-zinc-300',
+    },
+    {
+      label: 'Total Kg',
+      value: Math.round(totalWeightLifted).toLocaleString(),
+      icon: Dumbbell,
+      color: 'text-orange-400',
+    },
+  ];
+
+  const showValidation = (title: string, message: string) => {
+    setValidationTitle(title);
+    setValidationMessage(message);
+    setValidationDialogOpen(true);
+  };
+
+  const getSetFieldValue = (set: WorkoutSet, field: LoggingFieldKey) => Number(set[field] ?? 0);
+
+  const buildRoutineFromWorkout = (name: string, sourceExercises: ExerciseLog[]) => {
+    const routineExercises = sourceExercises
+      .map((exerciseLog) => exercises.find((exercise) => exercise.id === exerciseLog.exerciseId))
+      .filter((exercise): exercise is (typeof exercises)[number] => Boolean(exercise));
+    const exerciseLogs = sourceExercises.map((exerciseLog) => ({
+      exerciseId: exerciseLog.exerciseId,
+      exerciseName: exerciseLog.exerciseName,
+      mainMuscles: exerciseLog.mainMuscles,
+      sets: exerciseLog.sets.map((set) => ({
+        type: set.type ?? 'normal',
+        weight: set.weight,
+        reps: set.reps,
+        duration: set.duration,
+        distance: set.distance,
+        incline: set.incline,
+      })),
+    }));
+
+    return {
+      name: name.trim(),
+      exercises: routineExercises,
+      exerciseLogs,
+    };
+  };
+
   const handleLogWorkout = () => {
-    // Step A: Check if any exercise has zero sets
-    const exercisesWithNoSets = workoutExercises.filter(ex => ex.sets.length === 0);
+    const exercisesWithNoSets = workoutExercises.filter((exercise) => exercise.sets.length === 0);
     if (exercisesWithNoSets.length > 0) {
-      setValidationTitle('Cannot Log Workout');
-      setValidationMessage('Every exercise must contain at least one set, or be removed before finishing. Please add sets or remove empty exercises.');
-      setValidationDialogOpen(true);
+      showValidation(
+        'Cannot Log Workout',
+        'Every exercise must contain at least one set, or be removed before finishing.',
+      );
       return;
     }
 
-    // Step B: Check if any set has invalid values
-    let hasInvalidWeight = false;
-    let hasInvalidReps = false;
-    
     for (const exercise of workoutExercises) {
+      const exerciseMeta = exercises.find((item) => item.id === exercise.exerciseId);
+      const logging = getExerciseLogging(exerciseMeta);
+
       for (const set of exercise.sets) {
-        if (set.weight === 0) {
-          hasInvalidWeight = true;
-          break;
+        const missingField = logging.fields.find((field) => field.required && getSetFieldValue(set, field.key) <= 0);
+        const hasAnyLoggedValue = logging.fields.some((field) => getSetFieldValue(set, field.key) > 0);
+        if (missingField) {
+          showValidation(
+            'Invalid Set Data',
+            `${missingField.label} must be greater than 0 for ${exercise.exerciseName}.`,
+          );
+          return;
         }
-        if (set.reps === 0) {
-          hasInvalidReps = true;
-          break;
+        if (!hasAnyLoggedValue) {
+          showValidation('Invalid Set Data', `Log at least one value for ${exercise.exerciseName} before finishing.`);
+          return;
         }
       }
-      if (hasInvalidWeight || hasInvalidReps) break;
     }
 
-    if (hasInvalidWeight) {
-      setValidationTitle('Invalid Set Data');
-      setValidationMessage('All sets must have a weight greater than 0. Please fix or remove invalid sets before finishing.');
-      setValidationDialogOpen(true);
+    if (!routineId && saveAsRoutine && !newRoutineName.trim()) {
+      showValidation('Routine Name Required', 'Enter a routine name before saving this workout as a routine.');
       return;
     }
 
-    if (hasInvalidReps) {
-      setValidationTitle('Invalid Set Data');
-      setValidationMessage('All sets must have reps greater than 0. Please fix or remove invalid sets before finishing.');
-      setValidationDialogOpen(true);
-      return;
-    }
-
-    // Step C: Check if all sets are marked as done
-    const allSetsCompleted = workoutExercises.every(ex => 
-      ex.sets.every(set => set.completed)
-    );
-
+    const allSetsCompleted = workoutExercises.every((exercise) => exercise.sets.every((set) => set.completed));
     if (!allSetsCompleted) {
-      // Show confirmation dialog
       setUncompletedSetsDialogOpen(true);
       return;
     }
 
-    // All validation passed, log the workout
     completeWorkout();
   };
 
   const completeWorkout = () => {
-    // Mark all valid sets as completed if they aren't already
-    const updatedExercises = workoutExercises.map(ex => ({
-      ...ex,
-      sets: ex.sets.map(set => ({ ...set, completed: true }))
+    const updatedExercises = workoutExercises.map((exercise) => ({
+      ...exercise,
+      sets: exercise.sets.map((set) => ({ ...set, completed: true })),
     }));
 
-    // In real app, save workout with notes and feeling
+    const previousWorkouts = user ? DataService.getWorkoutsByUserId(user.id) : [];
+    const totalLoggedSets = updatedExercises.reduce((acc, exercise) => acc + exercise.sets.length, 0);
+    const totalVolume = updatedExercises.reduce(
+      (acc, exercise) => acc + exercise.sets.reduce((setAcc, set) => setAcc + set.weight * set.reps, 0),
+      0,
+    );
+    const musclesTrained = updatedExercises.flatMap((exercise) => exercise.mainMuscles);
+    const comparison = user
+      ? DataService.getWorkoutComparison(user.id, totalVolume, totalLoggedSets)
+      : { volumeChange: 0, setsChange: 0 };
+    const savedWorkout = user
+      ? DataService.saveWorkout(user.id, {
+          workoutName,
+          durationSeconds: elapsedSeconds,
+          exercises: updatedExercises,
+          bodyweightKg: user.weight,
+          notes,
+          sessionFeeling,
+          sourceRoutineId: routineId,
+        })
+      : null;
+
+    if (user && !routineId && saveAsRoutine) {
+      DataService.saveRoutine(user.id, buildRoutineFromWorkout(newRoutineName, updatedExercises));
+    }
+
+    if (user && savedWorkout && workoutReminders) {
+      void schedulePostWorkoutReminders({
+        userId: user.id,
+        workoutId: savedWorkout.id,
+        workoutName,
+        completedAt: savedWorkout.createdAt,
+      });
+    }
+
+    const performedExercises = Array.from(new Set(updatedExercises.map((exercise) => exercise.exerciseId)))
+      .map((exerciseId) => exercises.find((exercise) => exercise.id === exerciseId))
+      .filter((exercise): exercise is (typeof exercises)[number] => Boolean(exercise));
+    const rankProgress =
+      user && savedWorkout
+        ? getWorkoutRankProgressItems({
+            performedExercises,
+            previousWorkouts,
+            workoutsWithCompletedWorkout: [savedWorkout, ...previousWorkouts],
+            completedWorkoutId: savedWorkout.id,
+            fallbackBodyweightKg: user.weight,
+          })
+        : [];
+
+    const summaryData = {
+      workoutId: savedWorkout?.id,
+      workoutName,
+      duration: elapsedSeconds,
+      totalSets: totalLoggedSets,
+      totalVolume,
+      musclesTrained,
+      exercises: updatedExercises,
+      comparison,
+      rankProgress,
+    };
+
+    setPendingSummaryData(summaryData);
+    if (routineId) {
+      setPendingRoutineUpdate({
+        routineId,
+        routineName,
+        exercises: updatedExercises,
+      });
+    }
+
     finishWorkout();
-    
-    // Check if workout was started from a routine
-    const isFromRoutine = !!routineId;
-    
-    if (isFromRoutine) {
+
+    if (routineId) {
       setRoutineUpdateDialogOpen(true);
     } else {
-      navigateToSummary();
+      navigate('/workout-summary', { state: { summaryData } });
     }
   };
 
@@ -120,49 +260,16 @@ export function FinishWorkoutPage() {
   };
 
   const handleUpdateRoutine = () => {
-    // In real app, update the routine with current workout data
+    if (user && pendingRoutineUpdate) {
+      DataService.updateRoutineFromWorkout(user.id, pendingRoutineUpdate.routineId, pendingRoutineUpdate.exercises);
+    }
     setRoutineUpdateDialogOpen(false);
-    navigateToSummary();
+    navigate('/workout-summary', { state: { summaryData: pendingSummaryData } });
   };
 
   const handleKeepRoutine = () => {
     setRoutineUpdateDialogOpen(false);
-    navigateToSummary();
-  };
-
-  const navigateToSummary = () => {
-    // Calculate total volume
-    const totalVolume = workoutExercises.reduce((acc, ex) => 
-      acc + ex.sets.reduce((setAcc, set) => setAcc + (set.weight * set.reps), 0), 0
-    );
-
-    // Get all muscles trained
-    const musclesTrained = workoutExercises.flatMap(ex => ex.mainMuscles);
-
-    // Mock comparison data (in real app, compare to actual previous workout)
-    const summaryData = {
-      workoutName,
-      duration: elapsedSeconds,
-      totalSets: workoutExercises.reduce((acc, ex) => acc + ex.sets.length, 0),
-      totalVolume,
-      musclesTrained,
-      exercises: workoutExercises,
-      comparison: {
-        volumeChange: 5.2, // Mock: +5.2% volume increase
-        setsChange: 2, // Mock: +2 sets
-      },
-    };
-
-    navigate('/workout-summary', { state: { summaryData } });
-  };
-
-  const handleDiscardClick = () => {
-    setDiscardDialogOpen(true);
-  };
-
-  const handleDiscardConfirm = () => {
-    setDiscardDialogOpen(false);
-    setConfirmDiscardDialogOpen(true);
+    navigate('/workout-summary', { state: { summaryData: pendingSummaryData } });
   };
 
   const handleFinalDiscard = () => {
@@ -171,37 +278,36 @@ export function FinishWorkoutPage() {
   };
 
   const feelings = [
-    { value: 1, label: 'Very Easy', emoji: '😊' },
-    { value: 2, label: 'Easy', emoji: '🙂' },
-    { value: 3, label: 'Moderate', emoji: '😐' },
-    { value: 4, label: 'Hard', emoji: '😅' },
-    { value: 5, label: 'Very Hard', emoji: '😰' },
+    { value: 1, label: 'Very Easy' },
+    { value: 2, label: 'Easy' },
+    { value: 3, label: 'Moderate' },
+    { value: 4, label: 'Hard' },
+    { value: 5, label: 'Very Hard' },
   ];
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white pb-20">
-      {/* Header */}
-      <div className="sticky top-0 bg-zinc-950 border-b border-zinc-800 z-10">
-        <div className="px-4 py-4 flex items-center justify-between">
+    <div className="screen-shell">
+      <div className="sticky-header">
+        <div className="px-3 py-4 flex items-center justify-between">
           <button
             onClick={() => navigate('/active-workout')}
-            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
+            className="premium-button premium-button-secondary px-3 flex items-center gap-2 text-zinc-300"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="text-sm">Back</span>
           </button>
-          <h1 className="text-lg">Finish Workout</h1>
+          <h1 className="text-lg font-semibold">Finish Workout</h1>
           <button
             onClick={handleLogWorkout}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm transition-colors"
+            className="premium-button premium-button-success px-4 flex items-center gap-2 text-sm font-medium"
           >
             <Save className="w-4 h-4" />
             Log
           </button>
         </div>
-        <div className="px-4 pb-4 flex justify-center">
+        <div className="px-3 pb-4 flex justify-center">
           <button
-            onClick={handleDiscardClick}
+            onClick={() => setDiscardDialogOpen(true)}
             className="flex items-center gap-2 text-zinc-500 hover:text-red-400 text-sm transition-colors"
           >
             <XCircle className="w-4 h-4" />
@@ -210,43 +316,36 @@ export function FinishWorkoutPage() {
         </div>
       </div>
 
-      <div className="px-4 py-6 space-y-6">
-        {/* Workout Summary */}
-        <div className="bg-zinc-900 rounded-xl p-5 border border-zinc-800">
-          <h2 className="text-xl text-white mb-4">{workoutName}</h2>
-          
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="bg-zinc-800 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-blue-400 mb-1">
-                <Clock className="w-4 h-4" />
-                <span className="text-xs">Duration</span>
-              </div>
-              <div className="text-lg text-white">{formatTime(elapsedSeconds)}</div>
-            </div>
-            <div className="bg-zinc-800 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-green-400 mb-1">
-                <TrendingUp className="w-4 h-4" />
-                <span className="text-xs">Total Sets</span>
-              </div>
-              <div className="text-lg text-white">{totalSets}</div>
-            </div>
-            <div className="bg-zinc-800 rounded-lg p-3">
-              <div className="text-xs text-zinc-400 mb-1">Completed</div>
-              <div className="text-lg text-white">{completedSets}/{totalSets}</div>
-            </div>
+      <div className="px-2.5 py-5 space-y-5 sm:px-4 sm:py-6 sm:space-y-6">
+        <div className="premium-card p-3.5 sm:p-5">
+          <h2 className="text-xl font-semibold text-white mb-4">{workoutName}</h2>
+
+          <div className="mb-4 grid grid-cols-2 gap-2 min-[380px]:grid-cols-4">
+            {summaryStats.map((stat) => {
+              const Icon = stat.icon;
+
+              return (
+                <div key={stat.label} className="premium-row flex min-h-[5rem] min-w-0 flex-col justify-between p-2">
+                  <div className={`flex min-h-5 min-w-0 items-start gap-1 ${stat.color}`}>
+                    <Icon className="h-3 w-3 shrink-0" />
+                    <span className="min-w-0 text-[10px] leading-tight">{stat.label}</span>
+                  </div>
+                  <div className="stat-number truncate text-base leading-none min-[380px]:text-lg">{stat.value}</div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Exercise Summary */}
           <div className="space-y-2">
             {workoutExercises.map((exercise) => {
-              const exerciseData = exercises.find(ex => ex.id === exercise.exerciseId);
-              const completedCount = exercise.sets.filter(s => s.completed).length;
-              
+              const exerciseData = exercises.find((item) => item.id === exercise.exerciseId);
+              const completedCount = exercise.sets.filter((set) => set.completed).length;
+
               return (
-                <div key={exercise.exerciseId} className="bg-zinc-800 rounded-lg p-3 flex items-center gap-3">
+                <div key={exercise.exerciseId} className="premium-row p-3 flex items-center gap-3">
                   {exerciseData && <ExerciseThumbnail exercise={exerciseData} size="sm" />}
                   <div className="flex-1">
-                    <div className="text-white text-sm mb-1">{exercise.exerciseName}</div>
+                    <div className="text-white text-sm font-medium mb-1">{exercise.exerciseName}</div>
                     <div className="text-xs text-zinc-400">
                       {completedCount} / {exercise.sets.length} sets completed
                     </div>
@@ -257,45 +356,94 @@ export function FinishWorkoutPage() {
           </div>
         </div>
 
-        {/* Session Feeling */}
-        <div className="bg-zinc-900 rounded-xl p-5 border border-zinc-800">
-          <h3 className="text-white mb-3">How did this session feel?</h3>
-          <div className="grid grid-cols-5 gap-2">
+        {!routineId && (
+          <div className="premium-card p-3.5 sm:p-5">
+            <button
+              type="button"
+              onClick={() => setSaveAsRoutine((current) => !current)}
+              className="flex w-full items-start gap-3 text-left"
+            >
+              <div
+                className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
+                  saveAsRoutine
+                    ? 'border-blue-400/40 bg-blue-500/15 text-blue-200'
+                    : 'border-white/10 bg-white/[0.035] text-zinc-400'
+                }`}
+              >
+                <ClipboardList className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-white font-medium">Save as Routine</h3>
+                  <div
+                    className={`h-6 w-11 shrink-0 rounded-full border p-0.5 transition-colors ${
+                      saveAsRoutine ? 'border-blue-400/40 bg-blue-500/30' : 'border-white/10 bg-black/20'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    <div
+                      className={`h-4.5 w-4.5 rounded-full bg-white transition-transform ${
+                        saveAsRoutine ? 'translate-x-5' : ''
+                      }`}
+                    />
+                  </div>
+                </div>
+                <p className="mt-1 text-sm leading-relaxed text-zinc-400">
+                  Turn this custom workout into a reusable routine after it is logged.
+                </p>
+              </div>
+            </button>
+            {saveAsRoutine && (
+              <div className="mt-4">
+                <label className="mb-2 block text-xs font-medium uppercase tracking-normal text-zinc-500">
+                  Routine Name
+                </label>
+                <input
+                  type="text"
+                  value={newRoutineName}
+                  onChange={(event) => setNewRoutineName(event.target.value)}
+                  className="premium-input w-full px-3 py-3 text-white outline-none"
+                  placeholder="Routine name"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="premium-card p-3.5 sm:p-5">
+          <h3 className="text-white font-medium mb-3">How did this session feel?</h3>
+          <div className="grid grid-cols-5 gap-1.5 min-[380px]:gap-2">
             {feelings.map((feeling) => (
               <button
                 key={feeling.value}
                 onClick={() => setSessionFeeling(feeling.value)}
-                className={`p-3 rounded-lg text-center transition-colors ${
-                  sessionFeeling === feeling.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                className={`premium-button flex min-h-[4.75rem] min-w-0 flex-col items-center justify-center p-1.5 text-center min-[380px]:p-2 ${
+                  sessionFeeling === feeling.value ? 'premium-button-primary' : 'premium-button-secondary text-zinc-400'
                 }`}
               >
-                <div className="text-2xl mb-1">{feeling.emoji}</div>
-                <div className="text-xs">{feeling.label}</div>
+                <div className="stat-number text-lg mb-1">{feeling.value}</div>
+                <div className="max-w-full whitespace-normal break-words text-[10px] leading-tight min-[380px]:text-xs">
+                  {feeling.label}
+                </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Workout Notes */}
-        <div className="bg-zinc-900 rounded-xl p-5 border border-zinc-800">
-          <h3 className="text-white mb-3">Workout Notes</h3>
+        <div className="premium-card p-3.5 sm:p-5">
+          <h3 className="text-white font-medium mb-3">Workout Notes</h3>
           <textarea
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(event) => setNotes(event.target.value.slice(0, 500))}
             placeholder="How did you feel? Any observations or adjustments for next time..."
-            className="w-full h-32 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white placeholder:text-zinc-500 resize-none focus:outline-none focus:border-blue-500"
+            className="premium-input w-full h-32 px-3 py-2 text-white placeholder:text-zinc-500 resize-none"
           />
-          <p className="text-xs text-zinc-500 mt-2">
-            {notes.length} / 500 characters
-          </p>
+          <p className="text-xs text-zinc-500 mt-2">{notes.length} / 500 characters</p>
         </div>
       </div>
 
-      {/* Discard Confirmation - First Step */}
       <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
-        <AlertDialogContent className="bg-zinc-900 text-white border-zinc-800">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard Workout?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">
@@ -303,12 +451,13 @@ export function FinishWorkoutPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-zinc-800 text-white border-zinc-700">
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel className="premium-button premium-button-secondary border-white/10 text-white">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDiscardConfirm}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                setDiscardDialogOpen(false);
+                setConfirmDiscardDialogOpen(true);
+              }}
+              className="premium-button premium-button-danger"
             >
               Continue to Discard
             </AlertDialogAction>
@@ -316,9 +465,8 @@ export function FinishWorkoutPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Discard Confirmation - Second Step */}
       <AlertDialog open={confirmDiscardDialogOpen} onOpenChange={setConfirmDiscardDialogOpen}>
-        <AlertDialogContent className="bg-zinc-900 text-white border-zinc-800">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">
@@ -326,76 +474,56 @@ export function FinishWorkoutPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-zinc-800 text-white border-zinc-700">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleFinalDiscard}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
+            <AlertDialogCancel className="premium-button premium-button-secondary border-white/10 text-white">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleFinalDiscard} className="premium-button premium-button-danger">
               Yes, Discard Workout
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Validation Dialog */}
       <AlertDialog open={validationDialogOpen} onOpenChange={setValidationDialogOpen}>
-        <AlertDialogContent className="bg-zinc-900 text-white border-zinc-800">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{validationTitle}</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
-              {validationMessage}
-            </AlertDialogDescription>
+            <AlertDialogDescription className="text-zinc-400">{validationMessage}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-zinc-800 text-white border-zinc-700">
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel className="premium-button premium-button-secondary border-white/10 text-white">Close</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Uncompleted Sets Dialog */}
       <AlertDialog open={uncompletedSetsDialogOpen} onOpenChange={setUncompletedSetsDialogOpen}>
-        <AlertDialogContent className="bg-zinc-900 text-white border-zinc-800">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Uncompleted Sets</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">
-              Some sets are not currently marked as completed. Finishing the workout now will automatically mark all valid sets as done and then log the workout.
+              Some sets are not currently marked as completed. Finishing now will mark all valid sets as done and log the workout.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-zinc-800 text-white border-zinc-700">
-              Go Back
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleFinishAnyway}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
+            <AlertDialogCancel className="premium-button premium-button-secondary border-white/10 text-white">Go Back</AlertDialogCancel>
+            <AlertDialogAction onClick={handleFinishAnyway} className="premium-button premium-button-success">
               Finish Anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Routine Update Dialog */}
       <AlertDialog open={routineUpdateDialogOpen} onOpenChange={setRoutineUpdateDialogOpen}>
-        <AlertDialogContent className="bg-zinc-900 text-white border-zinc-800">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Update Routine?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">
-              Would you like to update "{routineName}" to match the workout you just completed? This will save your current exercise list, set structure, reps, weights, and exercise order.
+              Would you like to update "{pendingRoutineUpdate?.routineName ?? routineName}" to match the workout you just completed?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleKeepRoutine} className="bg-zinc-800 text-white border-zinc-700">
+            <AlertDialogCancel onClick={handleKeepRoutine} className="premium-button premium-button-secondary border-white/10 text-white">
               Keep Existing Routine
             </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleUpdateRoutine}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
+            <AlertDialogAction onClick={handleUpdateRoutine} className="premium-button premium-button-primary">
               Update Routine
             </AlertDialogAction>
           </AlertDialogFooter>

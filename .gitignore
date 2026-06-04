@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Generated builds and caches
+dist/
+.vite/
+android/.gradle/
+android/app/build/
+android/build/
+
+# Local logs
+*.log
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

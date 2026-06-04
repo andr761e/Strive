@@ -10,7 +10,7 @@ interface InfoModalProps {
 export function InfoModal({ isOpen, onClose, title, message }: InfoModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-zinc-900 text-white border-zinc-800 max-w-sm">
+      <DialogContent className="max-w-sm">
         {title && (
           <DialogTitle className="text-lg text-white mb-2">{title}</DialogTitle>
         )}
@@ -20,7 +20,7 @@ export function InfoModal({ isOpen, onClose, title, message }: InfoModalProps) {
         <div className="flex justify-center mt-2">
           <button
             onClick={onClose}
-            className="w-32 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg transition-colors"
+            className="premium-button premium-button-primary w-32 py-2.5"
           >
             OK
           </button>

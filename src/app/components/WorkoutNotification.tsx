@@ -8,18 +8,18 @@ interface WorkoutNotificationProps {
   onClick?: () => void;
 }
 
-export function WorkoutNotification({ 
-  type, 
-  workoutName, 
-  elapsedTime, 
-  onDismiss, 
-  onClick 
+export function WorkoutNotification({
+  type,
+  workoutName,
+  elapsedTime,
+  onDismiss,
+  onClick,
 }: WorkoutNotificationProps) {
   if (type === 'active') {
     return (
-      <div 
+      <div
         onClick={onClick}
-        className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-lg cursor-pointer hover:bg-zinc-800 transition-colors"
+        className="premium-card p-4 cursor-pointer transition-colors hover:border-white/20"
       >
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -37,7 +37,7 @@ export function WorkoutNotification({
           </button>
         </div>
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-600/20 rounded-lg">
+          <div className="p-2 rounded-lg border border-blue-400/20 bg-blue-500/10">
             <Dumbbell className="w-5 h-5 text-blue-400" />
           </div>
           <div className="flex-1">
@@ -54,25 +54,20 @@ export function WorkoutNotification({
   }
 
   return (
-    <div 
-      className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-lg"
-    >
+    <div className="premium-card p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Bell className="w-4 h-4 text-orange-400" />
           <span className="text-sm text-zinc-400">Workout Reminder</span>
         </div>
-        <button
-          onClick={onDismiss}
-          className="text-zinc-500 hover:text-white"
-        >
+        <button onClick={onDismiss} className="text-zinc-500 hover:text-white">
           <X className="w-4 h-4" />
         </button>
       </div>
       <div className="space-y-2">
         <div className="text-white">Time to train!</div>
         <div className="text-sm text-zinc-400">
-          It's already been a day — go workout!
+          You have gone a day without training. Start a session when you are ready.
         </div>
       </div>
     </div>

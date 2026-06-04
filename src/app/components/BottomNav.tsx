@@ -12,8 +12,8 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 safe-area-bottom">
-      <div className="max-w-md mx-auto flex justify-around items-center h-16 px-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-zinc-950/88 backdrop-blur-xl safe-area-bottom">
+      <div className="max-w-md mx-auto flex justify-around items-center h-[68px] px-2">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -22,12 +22,15 @@ export function BottomNav() {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-                isActive ? 'text-blue-400' : 'text-zinc-400'
+              className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-xl transition-colors ${
+                isActive ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
-              <Icon className="w-6 h-6 mb-1" />
-              <span className="text-xs">{item.label}</span>
+              <div className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-blue-500/15 text-blue-300' : ''}`}>
+                <Icon className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] mt-0.5">{item.label}</span>
+              {isActive && <span className="absolute top-1.5 h-1 w-6 rounded-full bg-blue-400/80" />}
             </Link>
           );
         })}

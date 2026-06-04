@@ -1,21 +1,23 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Plus, Edit2, Trash2 } from 'lucide-react';
-import { workoutTemplates, type WorkoutTemplate } from '../data/mockData';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
+import { useAuth } from '../contexts/AuthContext';
+import { DataService, type WorkoutRoutine } from '../services/db';
 
 export function ManageRoutinesPage() {
   const navigate = useNavigate();
-  const [routines, setRoutines] = useState<WorkoutTemplate[]>(workoutTemplates);
+  const { user } = useAuth();
+  const [routines, setRoutines] = useState<WorkoutRoutine[]>(() => (user ? DataService.getRoutinesByUserId(user.id) : []));
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [routineToDelete, setRoutineToDelete] = useState<string | null>(null);
 
   const handleCreateNew = () => {
-    navigate('/edit-routine', { state: { routine: null } });
+    navigate('/edit-routine', { state: { routine: null, returnTo: '/manage-routines' } });
   };
 
-  const handleEdit = (routine: WorkoutTemplate) => {
-    navigate('/edit-routine', { state: { routine } });
+  const handleEdit = (routine: WorkoutRoutine) => {
+    navigate('/edit-routine', { state: { routine, returnTo: '/manage-routines' } });
   };
 
   const handleDeleteConfirm = (routineId: string) => {
@@ -24,25 +26,26 @@ export function ManageRoutinesPage() {
   };
 
   const handleDelete = () => {
-    if (routineToDelete) {
-      setRoutines(routines.filter((r) => r.id !== routineToDelete));
+    if (routineToDelete && user) {
+      DataService.deleteRoutine(user.id, routineToDelete);
+      setRoutines(DataService.getRoutinesByUserId(user.id));
       setRoutineToDelete(null);
       setDeleteDialogOpen(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white pb-20">
+    <div className="screen-shell">
       {/* Header */}
-      <div className="sticky top-0 bg-zinc-950 border-b border-zinc-800 z-10">
+      <div className="sticky-header">
         <div className="px-4 py-4 flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="text-zinc-400">
-            <ArrowLeft className="w-6 h-6" />
+          <button onClick={() => navigate(-1)} className="premium-button premium-button-secondary w-11 h-11 flex items-center justify-center">
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-xl flex-1">Manage Routines</h1>
+          <h1 className="text-xl font-semibold flex-1">Manage Routines</h1>
           <button
             onClick={handleCreateNew}
-            className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+            className="premium-button premium-button-primary w-11 h-11 flex items-center justify-center"
           >
             <Plus className="w-5 h-5" />
           </button>
@@ -52,11 +55,12 @@ export function ManageRoutinesPage() {
       {/* Routines List */}
       <div className="px-4 py-4 space-y-3">
         {routines.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-zinc-400 mb-4">No routines yet</p>
+          <div className="empty-state p-8 text-center">
+            <p className="text-sm font-medium text-white mb-1">No routines yet</p>
+            <p className="text-sm text-zinc-400 mb-5">Build a reusable workout template for faster sessions.</p>
             <button
               onClick={handleCreateNew}
-              className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg transition-colors"
+              className="premium-button premium-button-primary px-6 text-sm font-medium"
             >
               Create Your First Routine
             </button>
@@ -65,11 +69,11 @@ export function ManageRoutinesPage() {
           routines.map((routine) => (
             <div
               key={routine.id}
-              className="bg-zinc-900 rounded-xl p-4 border border-zinc-800"
+              className="premium-card p-4"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
-                  <h3 className="text-white mb-1">{routine.name}</h3>
+                  <h3 className="text-white font-medium mb-1">{routine.name}</h3>
                   <p className="text-sm text-zinc-400">
                     {routine.exercises.length} exercises
                   </p>
@@ -77,13 +81,13 @@ export function ManageRoutinesPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEdit(routine)}
-                    className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+                    className="premium-button premium-button-secondary w-10 h-10 flex items-center justify-center"
                   >
                     <Edit2 className="w-4 h-4 text-blue-400" />
                   </button>
                   <button
                     onClick={() => handleDeleteConfirm(routine.id)}
-                    className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+                    className="premium-button premium-button-danger w-10 h-10 flex items-center justify-center"
                   >
                     <Trash2 className="w-4 h-4 text-red-400" />
                   </button>
@@ -105,7 +109,7 @@ export function ManageRoutinesPage() {
 
       {/* Delete Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-zinc-900 text-white border-zinc-800">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Routine?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-400">
@@ -113,12 +117,12 @@ export function ManageRoutinesPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-zinc-800 text-white border-zinc-700">
+            <AlertDialogCancel className="premium-button premium-button-secondary border-white/10 text-white">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="premium-button premium-button-danger"
             >
               Delete
             </AlertDialogAction>

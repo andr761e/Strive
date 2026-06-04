@@ -22,21 +22,21 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Custom scrollbar for dark theme */
-  ::-webkit-scrollbar {
-    width: 8px;
+  /* Hide browser scrollbars everywhere while keeping native touch/trackpad scrolling. */
+  html,
+  body,
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
-  ::-webkit-scrollbar-track {
-    background: #18181b;
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 
-  ::-webkit-scrollbar-thumb {
-    background: #3f3f46;
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #52525b;
+  [data-slot='scroll-area-scrollbar'] {
+    display: none;
   }
 }

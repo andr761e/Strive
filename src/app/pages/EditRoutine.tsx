@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { ArrowLeft, Plus, GripVertical, X, ChevronDown, ChevronUp, Trash2, Save } from 'lucide-react';
-import { exercises, type Exercise, type SetType } from '../data/mockData';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import { ArrowLeft, Plus, X, ChevronDown, ChevronUp, Trash2, Save, Lightbulb, Check } from 'lucide-react';
+import { exercises, type Exercise, type MuscleGroup, type SetType } from '../data/mockData';
 import { ExerciseThumbnail } from '../components/ExerciseThumbnail';
 import { SetTypeSelector } from '../components/SetTypeSelector';
 import { BottomInputPanel } from '../components/BottomInputPanel';
 import { useSettings } from '../contexts/SettingsContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
+import { useAuth } from '../contexts/AuthContext';
+import { DataService } from '../services/db';
+import type { RoutineEditSuggestion } from '../../lib/insights';
+import { ReorderControls } from '../components/ReorderControls';
 
 interface TemplateSet {
   type: SetType;
@@ -20,25 +22,27 @@ interface TemplateSet {
 interface TemplateExercise {
   exerciseId: string;
   exerciseName: string;
-  mainMuscles: string[];
+  mainMuscles: MuscleGroup[];
   sets: TemplateSet[];
 }
 
 interface InputState {
   exerciseId: string;
   setIndex: number;
-  field: 'weight' | 'reps' | 'rir';
+  field: 'weight' | 'reps';
   value: number;
 }
 
 interface DraggableTemplateExerciseProps {
   exercise: TemplateExercise;
   index: number;
-  moveExercise: (fromIndex: number, toIndex: number) => void;
+  exerciseCount: number;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   showExtras: boolean;
   onToggleExtras: () => void;
   onAddSet: () => void;
-  onOpenInput: (setIndex: number, field: 'weight' | 'reps' | 'rir', value: number) => void;
+  onOpenInput: (setIndex: number, field: 'weight' | 'reps', value: number) => void;
   onDeleteSet: (setIndex: number) => void;
   onSetTypeChange: (setIndex: number, type: SetType) => void;
   onRemoveExercise: () => void;
@@ -47,7 +51,9 @@ interface DraggableTemplateExerciseProps {
 function DraggableTemplateExercise({
   exercise,
   index,
-  moveExercise,
+  exerciseCount,
+  onMoveUp,
+  onMoveDown,
   showExtras,
   onToggleExtras,
   onAddSet,
@@ -59,24 +65,6 @@ function DraggableTemplateExercise({
   const { weightUnit } = useSettings();
   const [setTypeSelectorOpen, setSetTypeSelectorOpen] = useState(false);
   const [selectedSetIndex, setSelectedSetIndex] = useState<number | null>(null);
-
-  const [{ isDragging }, drag, preview] = useDrag({
-    type: 'template-exercise',
-    item: { index },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  const [, drop] = useDrop({
-    accept: 'template-exercise',
-    hover: (item: { index: number }) => {
-      if (item.index !== index) {
-        moveExercise(item.index, index);
-        item.index = index;
-      }
-    },
-  });
 
   const exerciseData = exercises.find(ex => ex.id === exercise.exerciseId);
 
@@ -109,30 +97,18 @@ function DraggableTemplateExercise({
   };
 
   return (
-    <div
-      ref={(node) => preview(drop(node))}
-      className={`bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden ${
-        isDragging ? 'opacity-50' : ''
-      }`}
-    >
+    <div className="premium-card overflow-hidden">
       {/* Exercise Header */}
-      <div className="p-4 flex items-center gap-3 border-b border-zinc-800">
-        <div
-          ref={drag}
-          className="cursor-grab active:cursor-grabbing touch-none"
-        >
-          <GripVertical className="w-5 h-5 text-zinc-500" />
-        </div>
-        
+      <div className="p-4 flex items-center gap-3 border-b border-white/10">
         {exerciseData && <ExerciseThumbnail exercise={exerciseData} size="md" />}
         
-        <div className="flex-1">
-          <h3 className="text-white mb-1">{exercise.exerciseName}</h3>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-white font-medium mb-1 truncate">{exercise.exerciseName}</h3>
           <div className="flex gap-2">
             {exercise.mainMuscles.map((muscle) => (
               <span
                 key={muscle}
-                className="text-xs bg-zinc-800 text-blue-400 px-2 py-0.5 rounded"
+                className="premium-badge text-xs text-blue-200 px-2 py-0.5"
               >
                 {muscle}
               </span>
@@ -140,36 +116,47 @@ function DraggableTemplateExercise({
           </div>
         </div>
 
-        <button
-          onClick={onRemoveExercise}
-          className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex shrink-0 items-start gap-2">
+          {exerciseCount > 1 && (
+            <ReorderControls
+              label={exercise.exerciseName}
+              canMoveUp={index > 0}
+              canMoveDown={index < exerciseCount - 1}
+              onMoveUp={onMoveUp}
+              onMoveDown={onMoveDown}
+            />
+          )}
+          <button
+            onClick={onRemoveExercise}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-zinc-400 transition-colors hover:border-red-400/30 hover:bg-red-500/10 hover:text-red-300"
+            aria-label={`Remove ${exercise.exerciseName}`}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Sets Table - Always Visible */}
       <div className="px-4 py-3">
         {exercise.sets.length > 0 && (
-          <div className="mb-3 overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="mb-3">
+            <table className="w-full table-fixed text-sm">
               <thead>
-                <tr className="text-zinc-400 border-b border-zinc-800">
+                <tr className="text-zinc-400 border-b border-white/10">
                   <th className="text-left py-2 px-2 w-12">Set</th>
                   <th className="text-center py-2 px-2">Weight</th>
                   <th className="text-center py-2 px-2">Reps</th>
-                  <th className="text-center py-2 px-2">RIR</th>
                   <th className="text-center py-2 px-2 w-10"></th>
                 </tr>
               </thead>
               <tbody>
                 {exercise.sets.map((set, idx) => {
                   return (
-                    <tr key={idx} className="border-b border-zinc-800">
+                    <tr key={idx} className="border-b border-white/10">
                       <td className="py-3 px-2">
                         <button
                           onClick={() => handleSetTypeClick(idx)}
-                          className="w-8 h-8 rounded flex items-center justify-center text-sm font-bold bg-zinc-800 text-white hover:bg-zinc-700 transition-colors"
+                          className="workout-field w-8 h-8 flex items-center justify-center text-sm font-bold hover:border-white/20"
                         >
                           {getSetTypeLabel(idx)}
                         </button>
@@ -177,7 +164,7 @@ function DraggableTemplateExercise({
                       <td className="py-3 px-2">
                         <button
                           onClick={() => onOpenInput(idx, 'weight', set.weight)}
-                          className="w-full px-3 py-2 rounded text-center bg-zinc-800 text-white hover:bg-zinc-700 transition-colors"
+                          className="workout-field w-full px-3 py-2 text-center hover:border-white/20"
                         >
                           {set.weight || '-'}
                         </button>
@@ -185,17 +172,9 @@ function DraggableTemplateExercise({
                       <td className="py-3 px-2">
                         <button
                           onClick={() => onOpenInput(idx, 'reps', set.reps)}
-                          className="w-full px-3 py-2 rounded text-center bg-zinc-800 text-white hover:bg-zinc-700 transition-colors"
+                          className="workout-field w-full px-3 py-2 text-center hover:border-white/20"
                         >
                           {set.reps || '-'}
-                        </button>
-                      </td>
-                      <td className="py-3 px-2">
-                        <button
-                          onClick={() => onOpenInput(idx, 'rir', set.rir || 0)}
-                          className="w-full px-3 py-2 rounded text-center bg-zinc-800 text-white hover:bg-zinc-700 transition-colors"
-                        >
-                          {set.rir || '-'}
                         </button>
                       </td>
                       <td className="py-3 px-2">
@@ -218,7 +197,7 @@ function DraggableTemplateExercise({
         {/* Add Set Button */}
         <button
           onClick={onAddSet}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors mb-2"
+          className="premium-button premium-button-primary w-full py-2.5 flex items-center justify-center gap-2 mb-2 font-medium"
         >
           <Plus className="w-4 h-4" />
           Add Set
@@ -245,7 +224,7 @@ function DraggableTemplateExercise({
 
       {/* Extras Section (Collapsible) */}
       {showExtras && exerciseData?.loggingGuidance && (
-        <div className="px-4 pb-4 border-t border-zinc-800 pt-3">
+        <div className="px-4 pb-4 border-t border-white/10 pt-3">
           <p className="text-sm text-zinc-400">{exerciseData.loggingGuidance}</p>
         </div>
       )}
@@ -265,8 +244,13 @@ export function EditRoutinePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { weightIncrement } = useSettings();
+  const { user } = useAuth();
   
-  const routineData = (location.state as any)?.routine || null;
+  const routeState = (location.state as any) || {};
+  const routineData = routeState.routine || null;
+  const incomingSuggestion = routeState.routineSuggestion as RoutineEditSuggestion | undefined;
+  const insightTitle = routeState.insightTitle as string | undefined;
+  const returnTo = routeState.returnTo || '/manage-routines';
   const isNewRoutine = !routineData;
 
   const [routineName, setRoutineName] = useState(routineData?.name || '');
@@ -298,6 +282,7 @@ export function EditRoutinePage() {
   const [exerciseToDelete, setExerciseToDelete] = useState<string | null>(null);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState<RoutineEditSuggestion | null>(incomingSuggestion ?? null);
 
   // Handle adding new exercises from selection page
   useEffect(() => {
@@ -312,9 +297,13 @@ export function EditRoutinePage() {
       setTemplateExercises((prev) => [...prev, ...newExerciseLogs]);
       
       // Clear the state so it doesn't add again on re-render
-      navigate('/edit-routine', { replace: true, state: { routine: routineData } });
+      navigate('/edit-routine', { replace: true, state: { routine: routineData, returnTo } });
     }
   }, [location.state]);
+
+  useEffect(() => {
+    setActiveSuggestion(incomingSuggestion ?? null);
+  }, [incomingSuggestion]);
 
   const toggleExtras = (exerciseId: string) => {
     setExpandedExtras(prev => {
@@ -329,10 +318,22 @@ export function EditRoutinePage() {
   };
 
   const moveExercise = (fromIndex: number, toIndex: number) => {
-    const newExercises = [...templateExercises];
-    const [movedExercise] = newExercises.splice(fromIndex, 1);
-    newExercises.splice(toIndex, 0, movedExercise);
-    setTemplateExercises(newExercises);
+    setTemplateExercises((current) => {
+      if (
+        fromIndex === toIndex ||
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= current.length ||
+        toIndex >= current.length
+      ) {
+        return current;
+      }
+
+      const newExercises = [...current];
+      const [movedExercise] = newExercises.splice(fromIndex, 1);
+      newExercises.splice(toIndex, 0, movedExercise);
+      return newExercises;
+    });
   };
 
   const addSet = (exerciseId: string) => {
@@ -347,7 +348,7 @@ export function EditRoutinePage() {
                   type: 'normal' as SetType,
                   weight: ex.sets.length > 0 ? ex.sets[ex.sets.length - 1].weight : 0,
                   reps: ex.sets.length > 0 ? ex.sets[ex.sets.length - 1].reps : 0,
-                  rir: ex.sets.length > 0 ? ex.sets[ex.sets.length - 1].rir : 0,
+                  rir: undefined,
                 },
               ],
             }
@@ -356,7 +357,7 @@ export function EditRoutinePage() {
     );
   };
 
-  const openInput = (exerciseId: string, setIndex: number, field: 'weight' | 'reps' | 'rir', value: number) => {
+  const openInput = (exerciseId: string, setIndex: number, field: 'weight' | 'reps', value: number) => {
     setInputState({ exerciseId, setIndex, field, value });
   };
 
@@ -426,16 +427,119 @@ export function EditRoutinePage() {
 
   const handleAddExerciseClick = () => {
     // Navigate to exercise selection with a flag to return to routine builder
-    navigate('/exercise-selection', { 
+    navigate('/exercise-selection', {
+      replace: true,
       state: { 
         fromEditRoutine: true,
         currentExercises: templateExercises.map(ex => ex.exerciseId),
-        routine: routineData
+        routine: buildRoutineDraft(),
+        returnTo,
       } 
     });
   };
 
+  const suggestionExercise = activeSuggestion
+    ? exercises.find(
+        (exercise) =>
+          exercise.id === activeSuggestion.exerciseId ||
+          exercise.name.toLowerCase() === activeSuggestion.exerciseName?.toLowerCase(),
+      )
+    : null;
+
+  const createSuggestedSets = (count: number) =>
+    Array.from({ length: Math.max(1, Math.min(4, count)) }, () => ({
+      type: 'normal' as SetType,
+      weight: 0,
+      reps: 12,
+      rir: undefined,
+    }));
+
+  const applyRoutineSuggestion = () => {
+    if (!activeSuggestion) return;
+
+    if (activeSuggestion.kind === 'add_exercise' && suggestionExercise) {
+      setTemplateExercises((prev) => {
+        const existing = prev.find((exercise) => exercise.exerciseId === suggestionExercise.id);
+        const addedSets = createSuggestedSets(activeSuggestion.targetSets ?? 3);
+
+        if (existing) {
+          return prev.map((exercise) =>
+            exercise.exerciseId === suggestionExercise.id
+              ? { ...exercise, sets: [...exercise.sets, ...addedSets] }
+              : exercise,
+          );
+        }
+
+        return [
+          ...prev,
+          {
+            exerciseId: suggestionExercise.id,
+            exerciseName: suggestionExercise.name,
+            mainMuscles: suggestionExercise.mainMuscles,
+            sets: addedSets,
+          },
+        ];
+      });
+    }
+
+    if (activeSuggestion.kind === 'remove_exercise') {
+      setTemplateExercises((prev) =>
+        prev.filter(
+          (exercise) =>
+            exercise.exerciseId !== activeSuggestion.exerciseId &&
+            exercise.exerciseName.toLowerCase() !== activeSuggestion.exerciseName?.toLowerCase(),
+        ),
+      );
+    }
+
+    if (activeSuggestion.kind === 'reduce_sets') {
+      setTemplateExercises((prev) =>
+        prev.map((exercise) => {
+          const matches =
+            exercise.exerciseId === activeSuggestion.exerciseId ||
+            exercise.exerciseName.toLowerCase() === activeSuggestion.exerciseName?.toLowerCase();
+          if (!matches) return exercise;
+
+          const setsToRemove = Math.max(1, activeSuggestion.targetSets ?? 1);
+          return {
+            ...exercise,
+            sets: exercise.sets.slice(0, Math.max(1, exercise.sets.length - setsToRemove)),
+          };
+        }),
+      );
+    }
+
+    if (activeSuggestion.kind === 'reorder_exercise') {
+      setTemplateExercises((prev) => {
+        const fromIndex = prev.findIndex(
+          (exercise) =>
+            exercise.exerciseId === activeSuggestion.exerciseId ||
+            exercise.exerciseName.toLowerCase() === activeSuggestion.exerciseName?.toLowerCase(),
+        );
+        if (fromIndex < 0) return prev;
+
+        const targetIndex = Math.max(0, Math.min(prev.length - 1, (activeSuggestion.targetPosition ?? 1) - 1));
+        const next = [...prev];
+        const [moved] = next.splice(fromIndex, 1);
+        next.splice(targetIndex, 0, moved);
+        return next;
+      });
+    }
+
+    setActiveSuggestion(null);
+  };
+
+  const buildRoutineDraft = () => ({
+    id: routineData?.id,
+    name: routineName,
+    exercises: templateExercises
+      .map((templateExercise) => exercises.find((exercise) => exercise.id === templateExercise.exerciseId))
+      .filter((exercise): exercise is Exercise => Boolean(exercise)),
+    exerciseLogs: templateExercises,
+  });
+
   const handleSave = () => {
+    if (!user) return;
     if (!routineName.trim()) {
       alert('Please enter a routine name');
       return;
@@ -445,11 +549,16 @@ export function EditRoutinePage() {
       return;
     }
     
-    // Save routine logic would go here
-    console.log('Saving routine:', { name: routineName, exercises: templateExercises });
+    const draft = buildRoutineDraft();
+    DataService.saveRoutine(user.id, {
+      id: draft.id,
+      name: draft.name,
+      exercises: draft.exercises,
+      exerciseLogs: draft.exerciseLogs,
+    });
     
     // Navigate back
-    navigate('/manage-routines');
+    navigate('/manage-routines', { replace: true });
   };
 
   const handleBackClick = () => {
@@ -458,52 +567,95 @@ export function EditRoutinePage() {
 
   const handleDiscard = () => {
     setDiscardDialogOpen(false);
-    navigate(-1);
+    navigate(returnTo, { replace: true });
   };
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div className="min-h-screen bg-zinc-950 text-white pb-20">
+    <div className="screen-shell">
         {/* Header */}
-        <div className="sticky top-0 bg-zinc-950 border-b border-zinc-800 z-10">
-          <div className="px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1">
-              <button onClick={handleBackClick} className="text-zinc-400">
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <div className="flex-1">
-                {isEditingName ? (
-                  <input
-                    type="text"
-                    value={routineName}
-                    onChange={(e) => setRoutineName(e.target.value)}
-                    onBlur={() => setIsEditingName(false)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') setIsEditingName(false);
-                    }}
-                    autoFocus
-                    className="text-xl bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-white w-full"
-                    placeholder="Routine Name"
-                  />
-                ) : (
-                  <h1 
-                    className="text-xl cursor-pointer hover:text-zinc-300"
-                    onClick={() => setIsEditingName(true)}
-                  >
+        <div className="sticky-header">
+          <div className="grid min-h-[4.75rem] grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-3 px-4 py-3">
+            <button
+              type="button"
+              onClick={handleBackClick}
+              className="premium-button premium-button-secondary flex h-11 w-11 items-center justify-center p-0"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="min-w-0 self-center">
+              {isEditingName ? (
+                <input
+                  type="text"
+                  value={routineName}
+                  onChange={(e) => setRoutineName(e.target.value)}
+                  onBlur={() => setIsEditingName(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setIsEditingName(false);
+                  }}
+                  autoFocus
+                  className="premium-input h-10 w-full min-w-0 rounded-xl px-3 text-lg font-semibold text-white"
+                  placeholder="Routine name"
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="block h-10 w-full min-w-0 rounded-xl px-3 text-left transition-colors hover:bg-white/[0.04]"
+                  onClick={() => setIsEditingName(true)}
+                >
+                  <h1 className="truncate text-lg font-semibold leading-10">
                     {routineName || 'Untitled Routine'}
                   </h1>
-                )}
-                <p className="text-xs text-zinc-500 mt-0.5">Template • {templateExercises.length} exercises</p>
-              </div>
+                </button>
+              )}
+              <p className="mt-1 px-3 text-xs text-zinc-500">Template - {templateExercises.length} exercises</p>
             </div>
             <button
+              type="button"
               onClick={handleSave}
-              className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              className="premium-button premium-button-primary flex h-11 w-11 items-center justify-center p-0"
+              aria-label="Save routine"
             >
               <Save className="w-5 h-5 text-white" />
             </button>
           </div>
         </div>
+
+        {activeSuggestion && (
+          <div className="px-4 pt-4">
+            <div className="premium-card p-4 border-emerald-500/25 bg-emerald-500/[0.04]">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 rounded-lg bg-emerald-500/15 p-2 text-emerald-300">
+                  <Lightbulb className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-sm font-semibold text-white">{insightTitle ?? 'Routine suggestion'}</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-zinc-300">
+                    {activeSuggestion.reason}
+                    {activeSuggestion.exerciseName ? ` Suggested exercise: ${activeSuggestion.exerciseName}.` : ''}
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={applyRoutineSuggestion}
+                      className="premium-button premium-button-primary flex items-center gap-2 px-4 py-2 text-sm"
+                    >
+                      <Check className="h-4 w-4" />
+                      Apply
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSuggestion(null)}
+                      className="premium-button premium-button-secondary px-4 py-2 text-sm"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Exercise List */}
         <div className="px-4 py-4 space-y-3">
@@ -512,7 +664,9 @@ export function EditRoutinePage() {
               key={exercise.exerciseId}
               exercise={exercise}
               index={index}
-              moveExercise={moveExercise}
+              exerciseCount={templateExercises.length}
+              onMoveUp={() => moveExercise(index, index - 1)}
+              onMoveDown={() => moveExercise(index, index + 1)}
               showExtras={expandedExtras.has(exercise.exerciseId)}
               onToggleExtras={() => toggleExtras(exercise.exerciseId)}
               onAddSet={() => addSet(exercise.exerciseId)}
@@ -526,7 +680,7 @@ export function EditRoutinePage() {
           {/* Add Exercise Button */}
           <button
             onClick={handleAddExerciseClick}
-            className="w-full bg-zinc-900 hover:bg-zinc-800 border-2 border-dashed border-zinc-700 rounded-xl py-4 flex items-center justify-center gap-2 text-zinc-400 transition-colors"
+            className="empty-state w-full py-4 flex items-center justify-center gap-2 text-zinc-400 transition-colors hover:border-white/25 hover:text-white"
           >
             <Plus className="w-5 h-5" />
             Add Exercise
@@ -540,7 +694,7 @@ export function EditRoutinePage() {
             onClose={closeInput}
             value={inputState.value}
             onChange={handleInputChange}
-            label={inputState.field === 'weight' ? 'Weight' : inputState.field === 'reps' ? 'Reps' : 'RIR'}
+            label={inputState.field === 'weight' ? 'Weight' : 'Reps'}
             step={inputState.field === 'weight' ? weightIncrement : 1}
             unit={inputState.field === 'weight' ? 'kg' : ''}
             allowDecimal={inputState.field === 'weight'}
@@ -549,7 +703,7 @@ export function EditRoutinePage() {
 
         {/* Delete Exercise Dialog */}
         <AlertDialog open={deleteExerciseDialogOpen} onOpenChange={setDeleteExerciseDialogOpen}>
-          <AlertDialogContent className="bg-zinc-900 text-white border-zinc-800">
+          <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Remove Exercise?</AlertDialogTitle>
               <AlertDialogDescription className="text-zinc-400">
@@ -557,12 +711,12 @@ export function EditRoutinePage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel className="bg-zinc-800 text-white border-zinc-700">
+              <AlertDialogCancel className="premium-button premium-button-secondary border-white/10 text-white">
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={removeExercise}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                className="premium-button premium-button-danger"
               >
                 Remove
               </AlertDialogAction>
@@ -572,7 +726,7 @@ export function EditRoutinePage() {
 
         {/* Discard Changes Dialog */}
         <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
-          <AlertDialogContent className="bg-zinc-900 text-white border-zinc-800">
+          <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Discard Changes?</AlertDialogTitle>
               <AlertDialogDescription className="text-zinc-400">
@@ -580,19 +734,18 @@ export function EditRoutinePage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel className="bg-zinc-800 text-white border-zinc-700">
+              <AlertDialogCancel className="premium-button premium-button-secondary border-white/10 text-white">
                 Keep Editing
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDiscard}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                className="premium-button premium-button-danger"
               >
                 Discard
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
-    </DndProvider>
+    </div>
   );
 }

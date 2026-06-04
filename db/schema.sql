@@ -20,6 +20,7 @@ CREATE TABLE workouts (
   workout_name TEXT NOT NULL,
   workout_date DATE NOT NULL,
   duration_minutes INT,
+  bodyweight_kg NUMERIC(5,2),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

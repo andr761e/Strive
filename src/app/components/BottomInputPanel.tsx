@@ -1,5 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import { X, ChevronUp, ChevronDown, Check, AlertCircle } from 'lucide-react';
+import {
+  durationValueToSeconds,
+  formatDurationClock,
+  getDurationParts,
+  secondsToDurationValue,
+} from '../utils/timeFormatting';
 
 interface BottomInputPanelProps {
   isOpen: boolean;
@@ -12,6 +18,105 @@ interface BottomInputPanelProps {
   min?: number;
   max?: number;
   allowDecimal?: boolean;
+  required?: boolean;
+  mode?: 'number' | 'time';
+  blockingBackdrop?: boolean;
+  variant?: 'standard' | 'workout';
+  submitLabel?: string;
+  onSubmit?: () => void;
+  selectionKey?: string;
+}
+
+interface TimeWheelColumnProps {
+  label: string;
+  value: number;
+  values: number[];
+  onChange: (value: number) => void;
+  wrap?: boolean;
+}
+
+const wheelItemHeight = 48;
+const wheelCycleCount = 7;
+const wheelMiddleCycle = Math.floor(wheelCycleCount / 2);
+
+function wrapIndex(index: number, length: number) {
+  return ((index % length) + length) % length;
+}
+
+function TimeWheelColumn({ label, value, values, onChange, wrap = false }: TimeWheelColumnProps) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const selectedValueIndex = Math.max(0, values.indexOf(value));
+  const displayValues = useMemo(
+    () =>
+      wrap
+        ? Array.from({ length: wheelCycleCount * values.length }, (_, index) => values[index % values.length])
+        : values,
+    [values, wrap],
+  );
+  const getTargetIndex = (valueIndex: number) => (wrap ? wheelMiddleCycle * values.length + valueIndex : valueIndex);
+  const [activeIndex, setActiveIndex] = useState(() => getTargetIndex(selectedValueIndex));
+
+  useEffect(() => {
+    const nextIndex = getTargetIndex(selectedValueIndex);
+    setActiveIndex(nextIndex);
+    scrollRef.current?.scrollTo({ top: nextIndex * wheelItemHeight });
+  }, [selectedValueIndex, values.length, wrap]);
+
+  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    if (!values.length) return;
+
+    const node = event.currentTarget;
+    const rawIndex = Math.round(node.scrollTop / wheelItemHeight);
+    const nextValueIndex = wrap
+      ? wrapIndex(rawIndex, values.length)
+      : Math.max(0, Math.min(values.length - 1, rawIndex));
+    const nextValue = values[nextValueIndex];
+
+    if (nextValue !== value) {
+      onChange(nextValue);
+    }
+
+    if (wrap && (rawIndex < values.length || rawIndex > values.length * (wheelCycleCount - 2))) {
+      const recenteredIndex = getTargetIndex(nextValueIndex);
+      setActiveIndex(recenteredIndex);
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ top: recenteredIndex * wheelItemHeight });
+      });
+      return;
+    }
+
+    setActiveIndex(wrap ? rawIndex : nextValueIndex);
+  };
+
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="mb-2 text-center text-[10px] font-semibold uppercase tracking-normal text-zinc-500">{label}</div>
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="relative h-44 snap-y snap-mandatory overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-black/25 px-1 py-0"
+      >
+        <div className="h-16 shrink-0" />
+        {displayValues.map((option, index) => {
+          const isSelected = index === activeIndex;
+          return (
+            <button
+              key={`${index}-${option}`}
+              type="button"
+              onClick={() => onChange(option)}
+              className={`h-12 w-full snap-center rounded-xl text-center font-mono text-lg transition-colors ${
+                isSelected ? 'bg-blue-500/15 text-white ring-1 ring-blue-400/35' : 'text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-200'
+              }`}
+            >
+              {option.toString().padStart(2, '0')}
+            </button>
+          );
+        })}
+        <div className="h-16 shrink-0" />
+        <div className="pointer-events-none absolute inset-x-1 top-1/2 h-12 -translate-y-1/2 rounded-xl border border-blue-400/20 shadow-[0_0_22px_rgba(59,130,246,0.12)]" />
+      </div>
+    </div>
+  );
 }
 
 export function BottomInputPanel({
@@ -25,34 +130,65 @@ export function BottomInputPanel({
   min = 0,
   max = 999,
   allowDecimal = false,
+  required = true,
+  mode = 'number',
+  blockingBackdrop = true,
+  variant = 'standard',
+  submitLabel,
+  onSubmit,
+  selectionKey,
 }: BottomInputPanelProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [draftValue, setDraftValue] = useState(value.toString());
+  const [isDraftSelected, setIsDraftSelected] = useState(false);
+  const isValid = !required || value > 0;
+  const isTimeMode = mode === 'time';
+  const isWorkoutVariant = variant === 'workout';
+  const maxSeconds = isTimeMode ? durationValueToSeconds(max, unit) : max;
+  const selectedSeconds = isTimeMode
+    ? Math.min(durationValueToSeconds(value, unit), maxSeconds)
+    : 0;
+  const timeParts = getDurationParts(selectedSeconds);
+  const maxHours = Math.max(0, Math.floor(maxSeconds / 3600));
+  const hourValues = useMemo(() => Array.from({ length: maxHours + 1 }, (_, index) => index), [maxHours]);
+  const minuteValues = useMemo(() => Array.from({ length: 60 }, (_, index) => index), []);
+  const secondValues = minuteValues;
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (isOpen) {
+      setDraftValue(value.toString());
+      setIsDraftSelected(true);
     }
-  }, [isOpen]);
+  }, [isOpen, selectionKey]);
 
-  const isValid = value > 0;
+  const setDisplayValue = (nextString: string) => {
+    setDraftValue(nextString);
+    setIsDraftSelected(false);
+    const nextValue = parseFloat(nextString);
+    onChange(Number.isNaN(nextValue) ? 0 : Math.min(nextValue, max));
+  };
 
   const handleIncrement = () => {
     const newValue = Math.min(value + step, max);
-    onChange(Number(newValue.toFixed(1)));
+    const normalized = Number(newValue.toFixed(1));
+    setDraftValue(normalized.toString());
+    setIsDraftSelected(false);
+    onChange(normalized);
   };
 
   const handleDecrement = () => {
     const newValue = Math.max(value - step, min);
-    onChange(Number(newValue.toFixed(1)));
+    const normalized = Number(newValue.toFixed(1));
+    setDraftValue(normalized.toString());
+    setIsDraftSelected(false);
+    onChange(normalized);
   };
 
   const handleNumberClick = (num: number) => {
-    const currentString = value.toString();
+    const currentString = draftValue;
     
-    // If current value is 0, replace it
-    if (value === 0) {
-      onChange(num);
+    // If the value was just opened/selected, replace it on the first number press.
+    if (isDraftSelected || currentString === '0') {
+      setDisplayValue(num.toString());
       return;
     }
     
@@ -60,41 +196,65 @@ export function BottomInputPanel({
     const newValue = parseFloat(newString);
     
     if (newValue <= max) {
-      onChange(newValue);
+      setDisplayValue(newString);
     }
   };
 
   const handleDecimalClick = () => {
     if (!allowDecimal) return;
     
-    const currentString = value.toString();
+    const currentString = draftValue;
+    if (isDraftSelected) {
+      setDraftValue('0.');
+      setIsDraftSelected(false);
+      return;
+    }
     
     // Don't add decimal if already exists
     if (currentString.includes('.')) return;
     
-    // Add decimal point
-    const newString = currentString + '.';
-    onChange(parseFloat(newString));
+    setDraftValue(`${currentString || '0'}.`);
+    setIsDraftSelected(false);
   };
 
   const handleBackspace = () => {
-    const currentString = value.toString();
+    if (isDraftSelected) {
+      setDisplayValue('0');
+      return;
+    }
+
+    const currentString = draftValue;
     if (currentString.length <= 1) {
-      onChange(0);
+      setDisplayValue('0');
     } else {
       const newString = currentString.slice(0, -1);
-      const newValue = parseFloat(newString);
-      onChange(isNaN(newValue) ? 0 : newValue);
+      setDisplayValue(newString || '0');
     }
   };
 
   const handleClear = () => {
-    onChange(0);
+    setDisplayValue('0');
   };
 
   const handleDone = () => {
-    // Always allow closing, regardless of value
+    // Always allow advancing/closing, regardless of value.
+    if (onSubmit) {
+      onSubmit();
+      return;
+    }
     onClose();
+  };
+
+  const updateTimePart = (part: 'hours' | 'minutes' | 'seconds', nextValue: number) => {
+    const nextParts = {
+      ...timeParts,
+      [part]: nextValue,
+    };
+    const nextSeconds = Math.min(
+      maxSeconds,
+      nextParts.hours * 3600 + nextParts.minutes * 60 + nextParts.seconds,
+    );
+    onChange(secondsToDurationValue(nextSeconds, unit));
   };
 
   if (!isOpen) return null;
@@ -102,144 +262,230 @@ export function BottomInputPanel({
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
-        onClick={onClose}
-      />
+      {blockingBackdrop && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 transition-opacity"
+          onClick={onClose}
+        />
+      )}
 
       {/* Panel */}
-      <div className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 z-50 rounded-t-2xl animate-slide-up">
-        <div className="max-w-md mx-auto">
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 backdrop-blur-xl animate-slide-up ${
+          isWorkoutVariant
+            ? 'rounded-t-xl bg-zinc-950/98 shadow-[0_-18px_60px_rgba(0,0,0,0.58)]'
+            : 'rounded-t-2xl bg-zinc-950/95'
+        }`}
+      >
+        <div className={isWorkoutVariant ? 'mx-auto max-w-lg' : 'max-w-md mx-auto'}>
           {/* Header */}
-          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+          <div
+            className={`flex items-center justify-between border-b ${
+              isWorkoutVariant
+                ? 'border-blue-300/20 bg-blue-400 px-4 py-3 text-zinc-950'
+                : 'border-white/10 px-4 py-3'
+            }`}
+          >
             <div>
-              <h3 className="text-white text-sm">{label}</h3>
-              <p className="text-xs text-zinc-400">Tap numbers or use controls</p>
+              <h3 className={`text-sm font-semibold ${isWorkoutVariant ? 'text-zinc-950' : 'text-white'}`}>{label}</h3>
+              {!isWorkoutVariant && (
+                <p className="text-xs text-zinc-400">
+                  {isTimeMode ? 'Hours - Minutes - Seconds' : 'Numeric entry'}
+                </p>
+              )}
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-zinc-400 hover:text-white transition-colors"
+              className={`p-2 transition-colors ${
+                isWorkoutVariant ? 'text-zinc-950/80 hover:text-zinc-950' : 'text-zinc-400 hover:text-white'
+              }`}
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Value Display */}
-          <div className="px-4 py-6 bg-zinc-950/50">
-            <div className="flex items-center justify-center gap-3">
-              <button
-                onClick={handleDecrement}
-                className="w-12 h-12 bg-zinc-800 hover:bg-zinc-700 rounded-xl flex items-center justify-center transition-colors active:scale-95"
-              >
-                <ChevronDown className="w-6 h-6 text-white" />
-              </button>
-              
-              <div className="flex-1 max-w-[180px]">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  inputMode="decimal"
-                  value={value}
-                  onChange={(e) => {
-                    const newValue = parseFloat(e.target.value) || 0;
-                    if (newValue <= max) {
-                      onChange(newValue);
-                    }
-                  }}
-                  className={`w-full text-center text-4xl font-bold bg-transparent border-b-2 outline-none ${
-                    isValid
-                      ? 'text-white border-zinc-700 focus:border-blue-500'
-                      : 'text-red-400 border-red-500'
-                  }`}
-                />
-                {unit && (
-                  <p className="text-center text-sm text-zinc-400 mt-1">{unit}</p>
-                )}
+          {isTimeMode ? (
+            <div className="px-4 py-5">
+              <div className="mb-4 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-center">
+                <div className={`font-mono text-4xl font-bold ${isValid ? 'text-white' : 'text-red-400'}`}>
+                  {formatDurationClock(value, unit)}
+                </div>
                 {!isValid && (
-                  <div className="flex items-center justify-center gap-1 mt-2 text-xs text-red-400">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>Must be greater than 0</span>
+                  <div className="mt-2 flex items-center justify-center gap-1 text-xs text-red-400">
+                    <AlertCircle className="h-3 w-3" />
+                    <span>Required value</span>
                   </div>
                 )}
               </div>
 
-              <button
-                onClick={handleIncrement}
-                className="w-12 h-12 bg-zinc-800 hover:bg-zinc-700 rounded-xl flex items-center justify-center transition-colors active:scale-95"
-              >
-                <ChevronUp className="w-6 h-6 text-white" />
-              </button>
-            </div>
-          </div>
-
-          {/* Number Pad */}
-          <div className="px-4 py-4">
-            <div className="grid grid-cols-3 gap-3 mb-3">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => handleNumberClick(num)}
-                  className="h-14 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-white text-xl transition-colors active:scale-95"
-                >
-                  {num}
-                </button>
-              ))}
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                onClick={handleClear}
-                className="h-14 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-400 text-sm transition-colors active:scale-95"
-              >
-                Clear
-              </button>
-              <button
-                onClick={() => handleNumberClick(0)}
-                className="h-14 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-white text-xl transition-colors active:scale-95"
-              >
-                0
-              </button>
-              {allowDecimal ? (
-                <button
-                  onClick={handleDecimalClick}
-                  disabled={value.toString().includes('.')}
-                  className={`h-14 rounded-xl text-white text-xl transition-colors active:scale-95 ${
-                    value.toString().includes('.')
-                      ? 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed'
-                      : 'bg-zinc-800 hover:bg-zinc-700'
-                  }`}
-                >
-                  .
-                </button>
-              ) : (
-                <button
-                  onClick={handleBackspace}
-                  className="h-14 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-400 text-sm transition-colors active:scale-95"
-                >
-                  ⌫
-                </button>
-              )}
-            </div>
-            {allowDecimal && (
-              <div className="grid grid-cols-3 gap-3 mt-3">
-                <div className="col-span-2"></div>
-                <button
-                  onClick={handleBackspace}
-                  className="h-14 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-400 text-sm transition-colors active:scale-95"
-                >
-                  ⌫
-                </button>
+              <div className="flex gap-3">
+                <TimeWheelColumn
+                  label="Hours"
+                  value={timeParts.hours}
+                  values={hourValues}
+                  onChange={(nextValue) => updateTimePart('hours', nextValue)}
+                  wrap={hourValues.length > 1}
+                />
+                <TimeWheelColumn
+                  label="Minutes"
+                  value={timeParts.minutes}
+                  values={minuteValues}
+                  onChange={(nextValue) => updateTimePart('minutes', nextValue)}
+                  wrap
+                />
+                <TimeWheelColumn
+                  label="Seconds"
+                  value={timeParts.seconds}
+                  values={secondValues}
+                  onChange={(nextValue) => updateTimePart('seconds', nextValue)}
+                  wrap
+                />
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <>
+              {/* Value Display */}
+              <div className={`${isWorkoutVariant ? 'hidden' : 'bg-black/20 px-4 py-6'}`}>
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    onClick={handleDecrement}
+                    className="premium-button premium-button-secondary flex h-12 w-12 items-center justify-center active:scale-95"
+                  >
+                    <ChevronDown className="h-6 w-6 text-white" />
+                  </button>
+
+                  <div className="max-w-[180px] flex-1">
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className={`w-full border-b-2 bg-transparent text-center font-mono text-4xl font-bold outline-none ${
+                        isDraftSelected
+                          ? 'rounded-lg border-blue-400 bg-blue-500/25 px-2 text-white'
+                          : isValid
+                            ? 'border-zinc-700 text-white'
+                            : 'border-red-500 text-red-400'
+                      }`}
+                    >
+                      {draftValue}
+                    </div>
+                    {unit && (
+                      <p className="mt-1 text-center text-sm text-zinc-400">{unit}</p>
+                    )}
+                    {!isValid && (
+                      <div className="mt-2 flex items-center justify-center gap-1 text-xs text-red-400">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>Required value</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleIncrement}
+                    className="premium-button premium-button-secondary flex h-12 w-12 items-center justify-center active:scale-95"
+                  >
+                    <ChevronUp className="h-6 w-6 text-white" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Number Pad */}
+              <div className={isWorkoutVariant ? 'px-3 py-3' : 'px-4 py-4'}>
+                {isWorkoutVariant && (
+                  <div className="mb-3 grid grid-cols-[1fr_1fr_1fr] gap-2">
+                    <button
+                      onClick={handleIncrement}
+                      className="premium-button premium-button-secondary h-12 text-lg text-white active:scale-95"
+                    >
+                      +{step}
+                    </button>
+                    <div
+                      className={`flex min-w-0 items-center justify-center rounded-lg border px-2 text-center transition-colors ${
+                        isDraftSelected
+                          ? 'border-blue-300/70 bg-blue-500/25 shadow-[0_0_18px_rgba(96,165,250,0.2)]'
+                          : 'border-white/10 bg-black/25'
+                      }`}
+                    >
+                      <span className={`truncate font-mono text-2xl font-bold ${isValid ? 'text-white' : 'text-red-400'}`}>
+                        {draftValue}
+                      </span>
+                      {unit && <span className="ml-1 shrink-0 text-xs text-zinc-400">{unit}</span>}
+                    </div>
+                    <button
+                      onClick={handleDecrement}
+                      className="premium-button premium-button-secondary h-12 text-lg text-white active:scale-95"
+                    >
+                      -{step}
+                    </button>
+                  </div>
+                )}
+                <div className="mb-2 grid grid-cols-3 gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                    <button
+                      key={num}
+                      onClick={() => handleNumberClick(num)}
+                      className="premium-button premium-button-secondary h-12 text-xl text-white active:scale-95"
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={handleClear}
+                    className="premium-button premium-button-secondary h-12 text-sm text-zinc-400 active:scale-95"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => handleNumberClick(0)}
+                    className="premium-button premium-button-secondary h-12 text-xl text-white active:scale-95"
+                  >
+                    0
+                  </button>
+                  {allowDecimal ? (
+                    <button
+                      onClick={handleDecimalClick}
+                      disabled={draftValue.includes('.')}
+                      className={`premium-button h-12 text-xl text-white active:scale-95 ${
+                        draftValue.includes('.')
+                          ? 'cursor-not-allowed bg-zinc-800/50 text-zinc-600'
+                          : 'premium-button-secondary'
+                      }`}
+                    >
+                      .
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleBackspace}
+                      className="premium-button premium-button-secondary h-12 text-sm text-zinc-400 active:scale-95"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+                {allowDecimal && (
+                  <div className="mt-3 grid grid-cols-3 gap-3">
+                    <div className="col-span-2"></div>
+                    <button
+                      onClick={handleBackspace}
+                      className="premium-button premium-button-secondary h-12 text-sm text-zinc-400 active:scale-95"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Done Button */}
-          <div className="px-4 pb-6">
+          <div className={isWorkoutVariant ? 'px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]' : 'px-4 pb-6'}>
             <button
               onClick={handleDone}
-              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center gap-2 transition-colors active:scale-95"
+              className="premium-button premium-button-primary w-full h-12 flex items-center justify-center gap-2 active:scale-95"
             >
               <Check className="w-5 h-5" />
-              Done
+              {submitLabel ?? (isWorkoutVariant ? 'Next' : 'Done')}
             </button>
           </div>
         </div>

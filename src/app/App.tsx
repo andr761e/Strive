@@ -18,7 +18,7 @@ export default function App() {
     <AuthProvider>
       <SettingsProvider>
         <WorkoutProvider>
-          <div className="max-w-md mx-auto bg-zinc-950">
+          <div className="strive-app max-w-md mx-auto">
             <RouterProvider router={router} />
           </div>
         </WorkoutProvider>

@@ -29,10 +29,10 @@ export function WeightInput({ value, onChange, disabled }: WeightInputProps) {
       <button
         onClick={handleDecrement}
         disabled={disabled || value <= 0}
-        className={`p-1 rounded transition-colors ${
+        className={`workout-field w-7 h-7 flex items-center justify-center transition-colors ${
           disabled
-            ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-            : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300'
+            ? 'text-zinc-600 cursor-not-allowed'
+            : 'text-zinc-300 hover:border-white/20'
         }`}
       >
         <Minus className="w-3 h-3" />
@@ -43,19 +43,19 @@ export function WeightInput({ value, onChange, disabled }: WeightInputProps) {
         value={value}
         disabled={disabled}
         onChange={handleInputChange}
-        className={`w-16 border rounded px-2 py-1 text-center text-sm text-white ${
+        className={`workout-field w-16 px-2 py-1 text-center text-sm text-white ${
           disabled
-            ? 'bg-zinc-800 border-zinc-700 cursor-not-allowed'
-            : 'bg-zinc-800 border-zinc-700'
+            ? 'cursor-not-allowed opacity-60'
+            : ''
         }`}
       />
       <button
         onClick={handleIncrement}
         disabled={disabled}
-        className={`p-1 rounded transition-colors ${
+        className={`workout-field w-7 h-7 flex items-center justify-center transition-colors ${
           disabled
-            ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-            : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300'
+            ? 'text-zinc-600 cursor-not-allowed'
+            : 'text-zinc-300 hover:border-white/20'
         }`}
       >
         <Plus className="w-3 h-3" />

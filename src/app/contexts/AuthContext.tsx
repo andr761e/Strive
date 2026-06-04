@@ -4,13 +4,18 @@ import { DataService, clearSessionUser, getSessionUser, setSessionUser, type DBU
 interface AuthContextValue {
   user: DBUser | null;
   isLoading: boolean;
-  login: (username: string, password: string) => void;
+  login: (identifier: string, password: string) => void;
   signup: (payload: {
     name: string;
     username: string;
     email: string;
     password: string;
     birthday: string;
+    gender: string;
+    height?: number;
+    weight?: number;
+    experience?: string;
+    goal?: string;
   }) => void;
   logout: () => void;
   updateUser: (updates: Partial<Omit<DBUser, 'id' | 'username' | 'email' | 'password' | 'createdAt'>>) => void;
@@ -36,8 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = (username: string, password: string) => {
-    const existingUser = DataService.validateCredentials(username, password);
+  const login = (identifier: string, password: string) => {
+    const existingUser = DataService.validateCredentials(identifier, password);
     if (!existingUser) {
       throw new Error('Invalid username or password.');
     }
@@ -52,6 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string;
     password: string;
     birthday: string;
+    gender: string;
+    height?: number;
+    weight?: number;
+    experience?: string;
+    goal?: string;
   }) => {
     const newUser = DataService.createUser(payload);
     setSessionUser(newUser.id);

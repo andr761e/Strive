@@ -27,7 +27,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [trackingMode, setTrackingMode] = useState<TrackingMode>('rir');
   const [autoStartTimer, setAutoStartTimer] = useState(true);
   const [timerNotifications, setTimerNotifications] = useState(true);
-  const [workoutReminders, setWorkoutReminders] = useState(false);
+  const [workoutReminders, setWorkoutReminders] = useState(true);
 
   // Load settings from localStorage on mount
   useEffect(() => {
@@ -39,7 +39,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setTrackingMode(settings.trackingMode || 'rir');
       setAutoStartTimer(settings.autoStartTimer ?? true);
       setTimerNotifications(settings.timerNotifications ?? true);
-      setWorkoutReminders(settings.workoutReminders ?? false);
+      setWorkoutReminders(settings.workoutReminders ?? true);
     }
   }, []);
 
