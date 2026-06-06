@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { WorkoutProvider } from './contexts/WorkoutContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { reconcilePostWorkoutReminderSchedule } from './services/notifications';
 
 export default function App() {
   useEffect(() => {
@@ -12,6 +13,8 @@ export default function App() {
     if (viewport) {
       viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
     }
+
+    void reconcilePostWorkoutReminderSchedule();
   }, []);
 
   return (

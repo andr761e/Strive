@@ -77,6 +77,12 @@ function storeReminders(reminders: ScheduledWorkoutReminder[]) {
   window.localStorage.setItem(NOTIFICATION_SCHEDULE_STORAGE_KEY, JSON.stringify(reminders));
 }
 
+function getReminderCompletedAtMs(reminder: ScheduledWorkoutReminder) {
+  const fireAtMs = new Date(reminder.fireAt).getTime();
+  if (Number.isNaN(fireAtMs)) return Number.NEGATIVE_INFINITY;
+  return fireAtMs - reminder.hoursAfterWorkout * 60 * 60 * 1000;
+}
+
 export function buildPostWorkoutReminders({
   userId,
   workoutId,
@@ -146,8 +152,12 @@ export async function schedulePostWorkoutReminders(input: {
   completedAt?: string;
 }) {
   const reminders = buildPostWorkoutReminders(input);
-  const existing = readStoredReminders().filter((reminder) => reminder.workoutId !== input.workoutId);
-  storeReminders([...existing, ...reminders]);
+
+  // Reminder notifications represent time since the latest logged workout.
+  // A new completed workout must replace the entire previous reminder chain,
+  // otherwise stale 48h/72h/etc. alarms from older workouts can still fire.
+  await cancelPostWorkoutReminders();
+  storeReminders(reminders);
 
   await getBridge()?.scheduleWorkoutReminders?.(reminders);
   return reminders;
@@ -160,6 +170,38 @@ export async function cancelPostWorkoutReminders(workoutId?: string) {
 
   storeReminders(remainingReminders);
   await getBridge()?.cancelWorkoutReminders?.(workoutId);
+}
+
+export async function reconcilePostWorkoutReminderSchedule() {
+  const storedReminders = readStoredReminders();
+  if (storedReminders.length <= POST_WORKOUT_REMINDER_HOURS.length) return;
+
+  const latestReminder = storedReminders.reduce<ScheduledWorkoutReminder | null>((latest, reminder) => {
+    if (!latest) return reminder;
+    return getReminderCompletedAtMs(reminder) > getReminderCompletedAtMs(latest) ? reminder : latest;
+  }, null);
+
+  if (!latestReminder?.workoutId) {
+    await cancelPostWorkoutReminders();
+    return;
+  }
+
+  const latestWorkoutId = latestReminder.workoutId;
+  const staleWorkoutIds = Array.from(
+    new Set(
+      storedReminders
+        .map((reminder) => reminder.workoutId)
+        .filter((workoutId) => workoutId && workoutId !== latestWorkoutId),
+    ),
+  );
+
+  if (staleWorkoutIds.length === 0) return;
+
+  // Older app versions could keep reminder chains from previous workouts.
+  // Keep the latest workout's chain and cancel every stale native alarm.
+  storeReminders(storedReminders.filter((reminder) => reminder.workoutId === latestWorkoutId));
+  const bridge = getBridge();
+  await Promise.allSettled(staleWorkoutIds.map((workoutId) => bridge?.cancelWorkoutReminders?.(workoutId)));
 }
 
 export async function startActiveWorkoutNotification(payload: ActiveWorkoutNotificationPayload) {

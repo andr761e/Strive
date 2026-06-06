@@ -38,6 +38,11 @@ interface TimeWheelColumnProps {
 const wheelItemHeight = 48;
 const wheelCycleCount = 7;
 const wheelMiddleCycle = Math.floor(wheelCycleCount / 2);
+const outsideTapMovementThreshold = 8;
+
+function isBottomInputSwitchTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest('[data-bottom-input-switch="true"]'));
+}
 
 function wrapIndex(index: number, length: number) {
   return ((index % length) + length) % length;
@@ -140,6 +145,13 @@ export function BottomInputPanel({
 }: BottomInputPanelProps) {
   const [draftValue, setDraftValue] = useState(value.toString());
   const [isDraftSelected, setIsDraftSelected] = useState(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const outsidePointerRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    hasMoved: boolean;
+  } | null>(null);
   const isValid = !required || value > 0;
   const isTimeMode = mode === 'time';
   const isWorkoutVariant = variant === 'workout';
@@ -159,6 +171,68 @@ export function BottomInputPanel({
       setIsDraftSelected(true);
     }
   }, [isOpen, selectionKey]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleOutsidePointerDown = (event: globalThis.PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (panelRef.current?.contains(target)) return;
+
+      outsidePointerRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        hasMoved: false,
+      };
+    };
+
+    const handleOutsidePointerMove = (event: globalThis.PointerEvent) => {
+      const outsidePointer = outsidePointerRef.current;
+      if (!outsidePointer || outsidePointer.pointerId !== event.pointerId) return;
+
+      const deltaX = event.clientX - outsidePointer.startX;
+      const deltaY = event.clientY - outsidePointer.startY;
+      if (Math.hypot(deltaX, deltaY) > outsideTapMovementThreshold) {
+        outsidePointer.hasMoved = true;
+      }
+    };
+
+    const handleOutsidePointerUp = (event: globalThis.PointerEvent) => {
+      const outsidePointer = outsidePointerRef.current;
+      if (!outsidePointer || outsidePointer.pointerId !== event.pointerId) return;
+
+      outsidePointerRef.current = null;
+
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (panelRef.current?.contains(target)) return;
+      if (isBottomInputSwitchTarget(target)) return;
+      if (outsidePointer.hasMoved) return;
+
+      onClose();
+    };
+
+    const handleOutsidePointerCancel = (event: globalThis.PointerEvent) => {
+      if (outsidePointerRef.current?.pointerId === event.pointerId) {
+        outsidePointerRef.current = null;
+      }
+    };
+
+    window.addEventListener('pointerdown', handleOutsidePointerDown, { capture: true });
+    window.addEventListener('pointermove', handleOutsidePointerMove, { capture: true });
+    window.addEventListener('pointerup', handleOutsidePointerUp, { capture: true });
+    window.addEventListener('pointercancel', handleOutsidePointerCancel, { capture: true });
+
+    return () => {
+      outsidePointerRef.current = null;
+      window.removeEventListener('pointerdown', handleOutsidePointerDown, { capture: true });
+      window.removeEventListener('pointermove', handleOutsidePointerMove, { capture: true });
+      window.removeEventListener('pointerup', handleOutsidePointerUp, { capture: true });
+      window.removeEventListener('pointercancel', handleOutsidePointerCancel, { capture: true });
+    };
+  }, [isOpen, onClose]);
 
   const setDisplayValue = (nextString: string) => {
     setDraftValue(nextString);
@@ -259,6 +333,9 @@ export function BottomInputPanel({
 
   if (!isOpen) return null;
 
+  const workoutKeyHeightClass = 'h-[clamp(2rem,5dvh,2.4rem)]';
+  const workoutFooterButtonHeightClass = 'h-[clamp(2.25rem,5.5dvh,2.75rem)]';
+
   return (
     <>
       {/* Backdrop */}
@@ -271,9 +348,14 @@ export function BottomInputPanel({
 
       {/* Panel */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 backdrop-blur-xl animate-slide-up ${
+        ref={panelRef}
+        className={`fixed left-0 right-0 z-50 border-t border-white/10 backdrop-blur-xl animate-slide-up ${
+          isWorkoutVariant ? 'workout-input-panel-offset' : 'bottom-0'
+        } ${
           isWorkoutVariant
-            ? 'rounded-t-xl bg-zinc-950/98 shadow-[0_-18px_60px_rgba(0,0,0,0.58)]'
+            ? `rounded-t-xl bg-zinc-950/98 shadow-[0_-18px_60px_rgba(0,0,0,0.58)] ${
+                isTimeMode ? '' : 'max-h-[38dvh] overflow-hidden'
+              }`
             : 'rounded-t-2xl bg-zinc-950/95'
         }`}
       >
@@ -282,12 +364,12 @@ export function BottomInputPanel({
           <div
             className={`flex items-center justify-between border-b ${
               isWorkoutVariant
-                ? 'border-blue-300/20 bg-blue-400 px-4 py-3 text-zinc-950'
+                ? 'border-blue-300/20 bg-blue-400 px-3 py-2 text-zinc-950'
                 : 'border-white/10 px-4 py-3'
             }`}
           >
             <div>
-              <h3 className={`text-sm font-semibold ${isWorkoutVariant ? 'text-zinc-950' : 'text-white'}`}>{label}</h3>
+              <h3 className={`font-semibold ${isWorkoutVariant ? 'text-xs text-zinc-950' : 'text-sm text-white'}`}>{label}</h3>
               {!isWorkoutVariant && (
                 <p className="text-xs text-zinc-400">
                   {isTimeMode ? 'Hours - Minutes - Seconds' : 'Numeric entry'}
@@ -389,81 +471,78 @@ export function BottomInputPanel({
               </div>
 
               {/* Number Pad */}
-              <div className={isWorkoutVariant ? 'px-3 py-3' : 'px-4 py-4'}>
+              <div className={isWorkoutVariant ? 'px-3 py-2' : 'px-4 py-4'}>
                 {isWorkoutVariant && (
-                  <div className="mb-3 grid grid-cols-[1fr_1fr_1fr] gap-2">
+                  <div className="mb-1.5 grid grid-cols-[1fr_1.35fr_1fr] gap-1.5">
                     <button
-                      onClick={handleIncrement}
-                      className="premium-button premium-button-secondary h-12 text-lg text-white active:scale-95"
+                      onClick={handleDecrement}
+                      className={`premium-button premium-button-secondary ${workoutKeyHeightClass} text-base text-white active:scale-95`}
                     >
-                      +{step}
+                      -{step}
                     </button>
                     <div
-                      className={`flex min-w-0 items-center justify-center rounded-lg border px-2 text-center transition-colors ${
+                      className={`flex min-w-0 items-center justify-center rounded-lg border px-2 text-center transition-colors ${workoutKeyHeightClass} ${
                         isDraftSelected
                           ? 'border-blue-300/70 bg-blue-500/25 shadow-[0_0_18px_rgba(96,165,250,0.2)]'
                           : 'border-white/10 bg-black/25'
                       }`}
                     >
-                      <span className={`truncate font-mono text-2xl font-bold ${isValid ? 'text-white' : 'text-red-400'}`}>
+                      <span className={`truncate font-mono text-xl font-bold ${isValid ? 'text-white' : 'text-red-400'}`}>
                         {draftValue}
                       </span>
                       {unit && <span className="ml-1 shrink-0 text-xs text-zinc-400">{unit}</span>}
                     </div>
                     <button
-                      onClick={handleDecrement}
-                      className="premium-button premium-button-secondary h-12 text-lg text-white active:scale-95"
+                      onClick={handleIncrement}
+                      className={`premium-button premium-button-secondary ${workoutKeyHeightClass} text-base text-white active:scale-95`}
                     >
-                      -{step}
+                      +{step}
                     </button>
                   </div>
                 )}
-                <div className="mb-2 grid grid-cols-3 gap-2">
+                <div className={`${isWorkoutVariant ? 'mb-1.5 gap-1.5' : 'mb-2 gap-2'} grid grid-cols-3`}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                     <button
                       key={num}
                       onClick={() => handleNumberClick(num)}
-                      className="premium-button premium-button-secondary h-12 text-xl text-white active:scale-95"
+                      className={`premium-button premium-button-secondary ${
+                        isWorkoutVariant ? workoutKeyHeightClass : 'h-12'
+                      } text-xl text-white active:scale-95`}
                     >
                       {num}
                     </button>
                   ))}
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className={`${isWorkoutVariant ? 'gap-1.5' : 'gap-2'} grid grid-cols-3`}>
                   <button
-                    onClick={handleClear}
-                    className="premium-button premium-button-secondary h-12 text-sm text-zinc-400 active:scale-95"
+                    onClick={allowDecimal ? handleDecimalClick : handleClear}
+                    disabled={allowDecimal && draftValue.includes('.')}
+                    className={`premium-button premium-button-secondary ${
+                      isWorkoutVariant ? workoutKeyHeightClass : 'h-12'
+                    } text-sm text-zinc-400 active:scale-95 ${
+                      allowDecimal && draftValue.includes('.') ? 'cursor-not-allowed opacity-45' : ''
+                    }`}
                   >
-                    Clear
+                    {allowDecimal ? '.' : 'Clear'}
                   </button>
                   <button
                     onClick={() => handleNumberClick(0)}
-                    className="premium-button premium-button-secondary h-12 text-xl text-white active:scale-95"
+                    className={`premium-button premium-button-secondary ${
+                      isWorkoutVariant ? workoutKeyHeightClass : 'h-12'
+                    } text-xl text-white active:scale-95`}
                   >
                     0
                   </button>
-                  {allowDecimal ? (
-                    <button
-                      onClick={handleDecimalClick}
-                      disabled={draftValue.includes('.')}
-                      className={`premium-button h-12 text-xl text-white active:scale-95 ${
-                        draftValue.includes('.')
-                          ? 'cursor-not-allowed bg-zinc-800/50 text-zinc-600'
-                          : 'premium-button-secondary'
-                      }`}
-                    >
-                      .
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleBackspace}
-                      className="premium-button premium-button-secondary h-12 text-sm text-zinc-400 active:scale-95"
-                    >
-                      Delete
-                    </button>
-                  )}
+                  <button
+                    onClick={handleBackspace}
+                    className={`premium-button premium-button-secondary ${
+                      isWorkoutVariant ? workoutKeyHeightClass : 'h-12'
+                    } text-sm text-zinc-400 active:scale-95`}
+                  >
+                    Delete
+                  </button>
                 </div>
-                {allowDecimal && (
+                {allowDecimal && !isWorkoutVariant && (
                   <div className="mt-3 grid grid-cols-3 gap-3">
                     <div className="col-span-2"></div>
                     <button
@@ -479,10 +558,12 @@ export function BottomInputPanel({
           )}
 
           {/* Done Button */}
-          <div className={isWorkoutVariant ? 'px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]' : 'px-4 pb-6'}>
+          <div className={isWorkoutVariant ? 'px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]' : 'px-4 pb-6'}>
             <button
               onClick={handleDone}
-              className="premium-button premium-button-primary w-full h-12 flex items-center justify-center gap-2 active:scale-95"
+              className={`premium-button premium-button-primary flex w-full items-center justify-center gap-2 active:scale-95 ${
+                isWorkoutVariant ? workoutFooterButtonHeightClass : 'h-12'
+              }`}
             >
               <Check className="w-5 h-5" />
               {submitLabel ?? (isWorkoutVariant ? 'Next' : 'Done')}

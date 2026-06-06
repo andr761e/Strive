@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { Filter, GripVertical, ListOrdered, Settings2, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -81,14 +81,29 @@ function ReorderSectionsOverlay({ sectionOrder, visibleSections, onClose, onSave
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragPreview, setDragPreview] = useState<SectionDragPreview | null>(null);
   const draggingIndexRef = useRef<number | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     setDraftSections(sectionOrder);
   }, [sectionOrder]);
 
-  const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
+  useEffect(() => {
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, []);
+
+  const handlePointerMove = (event: { clientX: number; clientY: number; preventDefault?: () => void }) => {
     if (draggingIndexRef.current === null) return;
 
+    event.preventDefault?.();
     setDragPreview((preview) =>
       preview
         ? {
@@ -114,14 +129,43 @@ function ReorderSectionsOverlay({ sectionOrder, visibleSections, onClose, onSave
   };
 
   const handlePointerEnd = () => {
+    activePointerIdRef.current = null;
     draggingIndexRef.current = null;
     setDraggingIndex(null);
     setDragPreview(null);
   };
 
+  useEffect(() => {
+    if (draggingIndex === null) return;
+
+    const handleWindowPointerMove = (event: globalThis.PointerEvent) => {
+      if (activePointerIdRef.current !== null && event.pointerId !== activePointerIdRef.current) return;
+      handlePointerMove(event);
+    };
+    const handleWindowPointerEnd = (event: globalThis.PointerEvent) => {
+      if (activePointerIdRef.current !== null && event.pointerId !== activePointerIdRef.current) return;
+      handlePointerEnd();
+    };
+    const handleWindowBlur = () => {
+      handlePointerEnd();
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove, { passive: false });
+    window.addEventListener('pointerup', handleWindowPointerEnd);
+    window.addEventListener('pointercancel', handleWindowPointerEnd);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerEnd);
+      window.removeEventListener('pointercancel', handleWindowPointerEnd);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [draggingIndex]);
+
   return (
-    <div className="fixed inset-0 z-[80] bg-zinc-950 text-white">
-      <div className="flex min-h-full flex-col">
+    <div className="no-scrollbar fixed inset-0 z-[80] overflow-hidden bg-zinc-950 text-white">
+      <div className="flex h-full min-h-0 flex-col">
         <div className="sticky top-0 z-10 border-b border-white/10 bg-zinc-950/95 px-4 py-4 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <button
@@ -136,7 +180,7 @@ function ReorderSectionsOverlay({ sectionOrder, visibleSections, onClose, onSave
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 pb-28">
+        <div className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 pb-28">
           {draftSections.map((sectionKey, index) => {
             const label = getProgressSectionLabel(sectionKey);
             const isVisible = visibleSections[sectionKey];
@@ -161,6 +205,7 @@ function ReorderSectionsOverlay({ sectionOrder, visibleSections, onClose, onSave
                   onPointerDown={(event) => {
                     const row = event.currentTarget.closest('[data-reorder-section-index]') as HTMLElement | null;
                     const rect = row?.getBoundingClientRect();
+                    activePointerIdRef.current = event.pointerId;
                     draggingIndexRef.current = index;
                     setDraggingIndex(index);
                     if (rect) {

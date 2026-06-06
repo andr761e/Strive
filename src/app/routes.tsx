@@ -4,6 +4,7 @@ import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router
 import { Layout } from './Layout';
 import { AuthLoadingPage } from './pages/AuthLoading';
 import { useAuth } from './contexts/AuthContext';
+import { ActiveWorkoutPage } from './pages/ActiveWorkout';
 
 function lazyPage<TModule extends Record<string, ComponentType>>(
   importer: () => Promise<TModule>,
@@ -65,7 +66,7 @@ export const router = createBrowserRouter([
         lazy: lazyPage(() => import('./pages/WorkoutTemplateSelection'), 'WorkoutTemplateSelectionPage'),
       },
       { path: 'exercise-selection', lazy: lazyPage(() => import('./pages/ExerciseSelection'), 'ExerciseSelectionPage') },
-      { path: 'active-workout', lazy: lazyPage(() => import('./pages/ActiveWorkout'), 'ActiveWorkoutPage') },
+      { path: 'active-workout', Component: ActiveWorkoutPage },
       { path: 'finish-workout', lazy: lazyPage(() => import('./pages/FinishWorkout'), 'FinishWorkoutPage') },
       { path: 'workout-summary', lazy: lazyPage(() => import('./pages/WorkoutSummary'), 'WorkoutSummaryPage') },
       { path: 'manage-routines', lazy: lazyPage(() => import('./pages/ManageRoutines'), 'ManageRoutinesPage') },

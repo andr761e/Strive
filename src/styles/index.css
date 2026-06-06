@@ -396,10 +396,99 @@
       linear-gradient(180deg, #080a0f 0%, var(--strive-bg) 22rem);
   }
 
+  .active-workout-underlay {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: var(--strive-bg);
+  }
+
+  .active-workout-underlay-content {
+    height: 100dvh;
+    max-width: 28rem;
+    margin: 0 auto;
+    overflow: hidden;
+    transition: opacity 220ms ease, filter 220ms ease;
+  }
+
+  .active-workout-underlay-content .screen-shell {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .active-workout-underlay-nav {
+    pointer-events: none;
+    z-index: 90 !important;
+  }
+
+  .active-workout-drag-nav {
+    pointer-events: none;
+    z-index: 60 !important;
+  }
+
+  .active-workout-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    width: 100%;
+    max-width: 28rem;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    margin: 0 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-top-left-radius: 1.35rem;
+    border-top-right-radius: 1.35rem;
+    box-shadow:
+      0 -22px 70px rgba(0, 0, 0, 0.62),
+      0 -1px 0 rgba(255, 255, 255, 0.045);
+  }
+
   .active-workout-topbar {
+    overflow: hidden;
     background:
       linear-gradient(180deg, rgba(15, 18, 26, 0.96), rgba(8, 10, 15, 0.9)),
       rgba(6, 7, 10, 0.92);
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .active-workout-topbar:active {
+    cursor: grabbing;
+  }
+
+  .active-workout-shell-dragging {
+    touch-action: none;
+    will-change: transform;
+  }
+
+  .active-workout-drag-handle span {
+    display: block;
+    height: 0.35rem;
+    width: 3rem;
+    border-radius: 999px;
+    background: rgba(226, 232, 240, 0.28);
+    box-shadow: 0 0 18px rgba(96, 165, 250, 0.12);
+  }
+
+  .active-workout-drag-handle:active span {
+    background: rgba(147, 197, 253, 0.58);
+  }
+
+  .persistent-workout-drag-preview {
+    will-change: height, opacity;
+  }
+
+  .persistent-workout-minimized-header {
+    background:
+      linear-gradient(180deg, rgba(18, 22, 31, 0.98), rgba(8, 10, 15, 0.96)),
+      #0a0d13;
+    box-shadow:
+      0 -18px 48px rgba(0, 0, 0, 0.48),
+      inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    backdrop-filter: blur(18px);
   }
 
   .active-workout-stat {
@@ -467,6 +556,27 @@
     opacity: 0.9;
     transform: rotate(-0.7deg) scale(1.015);
     will-change: transform, left, top;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  .workout-input-panel-offset {
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    .workout-input-panel-offset {
+      bottom: max(3rem, env(safe-area-inset-bottom));
+    }
   }
 
   .empty-state {

@@ -163,6 +163,7 @@ function DraggableTemplateExercise({
                       </td>
                       <td className="py-3 px-2">
                         <button
+                          data-bottom-input-switch="true"
                           onClick={() => onOpenInput(idx, 'weight', set.weight)}
                           className="workout-field w-full px-3 py-2 text-center hover:border-white/20"
                         >
@@ -171,6 +172,7 @@ function DraggableTemplateExercise({
                       </td>
                       <td className="py-3 px-2">
                         <button
+                          data-bottom-input-switch="true"
                           onClick={() => onOpenInput(idx, 'reps', set.reps)}
                           className="workout-field w-full px-3 py-2 text-center hover:border-white/20"
                         >
@@ -698,6 +700,7 @@ export function EditRoutinePage() {
             step={inputState.field === 'weight' ? weightIncrement : 1}
             unit={inputState.field === 'weight' ? 'kg' : ''}
             allowDecimal={inputState.field === 'weight'}
+            selectionKey={`${inputState.exerciseId}:${inputState.setIndex}:${inputState.field}`}
           />
         )}
 

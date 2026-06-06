@@ -1,53 +1,197 @@
-import { useNavigate, useLocation } from 'react-router';
-import { ChevronUp, Clock } from 'lucide-react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useLocation } from 'react-router';
 import { useWorkout } from '../contexts/WorkoutContext';
+import { WorkoutCollapsedHeader } from './WorkoutCollapsedHeader';
+
+const COLLAPSED_BAR_HEIGHT = 68;
+const BOTTOM_NAV_HEIGHT = 68;
+const OPEN_DRAG_THRESHOLD = 96;
+const DRAG_START_THRESHOLD = 4;
+const OPEN_SETTLE_MS = 460;
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getCollapsedOffset() {
+  if (typeof window === 'undefined') return 560;
+  return Math.max(0, window.innerHeight - BOTTOM_NAV_HEIGHT - COLLAPSED_BAR_HEIGHT);
+}
 
 export function PersistentWorkoutBar() {
-  const navigate = useNavigate();
   const location = useLocation();
-  const { isWorkoutActive, workoutName, elapsedSeconds, isMinimized, expandWorkout } = useWorkout();
+  const {
+    isWorkoutActive,
+    workoutName,
+    elapsedSeconds,
+    workoutExercises,
+    isMinimized,
+    expandWorkout,
+    workoutSheetOffset,
+    setWorkoutSheetOffset,
+  } = useWorkout();
+  const [isPointerActive, setIsPointerActive] = useState(false);
+  const pointerIdRef = useRef<number | null>(null);
+  const startYRef = useRef(0);
+  const offsetRef = useRef(0);
+  const maxMovementRef = useRef(0);
+  const hasStartedSheetDragRef = useRef(false);
+  const settleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Don't show if not active, not minimized, or already on active workout page
+  const clearSettleTimeout = () => {
+    if (settleTimeoutRef.current) {
+      clearTimeout(settleTimeoutRef.current);
+      settleTimeoutRef.current = null;
+    }
+  };
+
+  const finishOpen = () => {
+    clearSettleTimeout();
+    const currentOffset = offsetRef.current;
+    hasStartedSheetDragRef.current = false;
+    setWorkoutSheetOffset(currentOffset, false);
+    expandWorkout();
+    window.requestAnimationFrame(() => {
+      setWorkoutSheetOffset(0, false);
+    });
+    settleTimeoutRef.current = setTimeout(() => {
+      setWorkoutSheetOffset(null, false);
+    }, OPEN_SETTLE_MS + 40);
+  };
+
+  const finishClosed = () => {
+    clearSettleTimeout();
+    const collapsedOffset = getCollapsedOffset();
+    hasStartedSheetDragRef.current = false;
+    setWorkoutSheetOffset(offsetRef.current, false);
+    window.requestAnimationFrame(() => {
+      setWorkoutSheetOffset(collapsedOffset, false);
+    });
+    settleTimeoutRef.current = setTimeout(() => {
+      setWorkoutSheetOffset(null, false);
+    }, OPEN_SETTLE_MS + 40);
+  };
+
+  useEffect(
+    () => () => {
+      clearSettleTimeout();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!isPointerActive) return;
+
+    const handlePointerMove = (event: globalThis.PointerEvent) => {
+      if (pointerIdRef.current !== null && event.pointerId !== pointerIdRef.current) return;
+
+      const collapsedOffset = getCollapsedOffset();
+      const deltaY = event.clientY - startYRef.current;
+      maxMovementRef.current = Math.max(maxMovementRef.current, Math.abs(deltaY));
+
+      if (!hasStartedSheetDragRef.current) {
+        if (deltaY >= -DRAG_START_THRESHOLD) {
+          if (Math.abs(deltaY) > DRAG_START_THRESHOLD) {
+            event.preventDefault();
+          }
+          return;
+        }
+
+        hasStartedSheetDragRef.current = true;
+      }
+
+      const nextOffset = clampNumber(collapsedOffset + deltaY, 0, collapsedOffset);
+      offsetRef.current = nextOffset;
+      setWorkoutSheetOffset(nextOffset, true);
+
+      if (Math.abs(deltaY) > 4) {
+        event.preventDefault();
+      }
+    };
+
+    const handlePointerEnd = (event: globalThis.PointerEvent) => {
+      if (pointerIdRef.current !== null && event.pointerId !== pointerIdRef.current) return;
+
+      const collapsedOffset = getCollapsedOffset();
+      const openedDistance = collapsedOffset - offsetRef.current;
+      const shouldOpen = maxMovementRef.current < 8 || (hasStartedSheetDragRef.current && openedDistance >= OPEN_DRAG_THRESHOLD);
+
+      pointerIdRef.current = null;
+      setIsPointerActive(false);
+
+      if (shouldOpen) {
+        if (!hasStartedSheetDragRef.current) {
+          offsetRef.current = collapsedOffset;
+        }
+        finishOpen();
+      } else if (hasStartedSheetDragRef.current) {
+        finishClosed();
+      } else {
+        hasStartedSheetDragRef.current = false;
+        setWorkoutSheetOffset(null, false);
+      }
+    };
+
+    const handleBlur = () => {
+      pointerIdRef.current = null;
+      setIsPointerActive(false);
+      if (hasStartedSheetDragRef.current) {
+        finishClosed();
+        return;
+      }
+      hasStartedSheetDragRef.current = false;
+      setWorkoutSheetOffset(null, false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('pointercancel', handlePointerEnd);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerEnd);
+      window.removeEventListener('pointercancel', handlePointerEnd);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [isPointerActive]);
+
+  const handleDragStart = (event: PointerEvent<HTMLDivElement>) => {
+    if (pointerIdRef.current !== null) {
+      event.preventDefault();
+      return;
+    }
+
+    clearSettleTimeout();
+    const collapsedOffset = getCollapsedOffset();
+    pointerIdRef.current = event.pointerId;
+    startYRef.current = event.clientY;
+    offsetRef.current = collapsedOffset;
+    maxMovementRef.current = 0;
+    hasStartedSheetDragRef.current = false;
+    setIsPointerActive(true);
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    event.preventDefault();
+  };
+
   if (!isWorkoutActive || !isMinimized || location.pathname === '/active-workout') {
     return null;
   }
 
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleExpand = () => {
-    expandWorkout();
-    navigate('/active-workout');
-  };
-
   return (
     <div
-      onClick={handleExpand}
-      className="fixed bottom-[68px] left-0 right-0 cursor-pointer z-40 border-t border-blue-400/30 bg-blue-600/90 backdrop-blur-xl transition-colors hover:bg-blue-600/95"
+      onPointerDown={handleDragStart}
+      className={`fixed bottom-[68px] left-1/2 z-40 w-full max-w-md -translate-x-1/2 cursor-pointer touch-none px-2 transition-opacity ${
+        workoutSheetOffset !== null ? 'opacity-0' : 'opacity-100'
+      }`}
     >
-      <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between shadow-2xl">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-white/12 flex items-center justify-center flex-shrink-0">
-            <ChevronUp className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-white text-sm font-semibold truncate">{workoutName || 'Active Workout'}</div>
-            <div className="text-blue-100 text-xs">Tap to resume</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 text-white flex-shrink-0 rounded-lg bg-white/10 px-2.5 py-1.5">
-          <Clock className="w-4 h-4" />
-          <span className="text-sm font-mono">{formatTime(elapsedSeconds)}</span>
-        </div>
-      </div>
+      <WorkoutCollapsedHeader
+        workoutName={workoutName}
+        elapsedSeconds={elapsedSeconds}
+        exerciseCount={workoutExercises.length}
+      />
     </div>
   );
 }

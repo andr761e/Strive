@@ -26,12 +26,15 @@ interface WorkoutContextType {
   isMinimized: boolean;
   routineId: string | null;
   routineName: string | null;
+  workoutSheetOffset: number | null;
+  isWorkoutSheetOffsetDragging: boolean;
   startWorkout: (name: string, exercises: ExerciseLog[], routineId?: string, routineName?: string) => void;
   finishWorkout: () => void;
   discardWorkout: () => void;
   minimizeWorkout: () => void;
   expandWorkout: () => void;
   updateWorkoutExercises: (exercises: ExerciseLog[]) => void;
+  setWorkoutSheetOffset: (offset: number | null, isDragging?: boolean) => void;
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
@@ -87,6 +90,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const [isMinimized, setIsMinimized] = useState(Boolean(persistedWorkout));
   const [routineId, setRoutineId] = useState<string | null>(persistedWorkout?.routineId ?? null);
   const [routineName, setRoutineName] = useState<string | null>(persistedWorkout?.routineName ?? null);
+  const [workoutSheetOffset, setWorkoutSheetOffsetValue] = useState<number | null>(null);
+  const [isWorkoutSheetOffsetDragging, setIsWorkoutSheetOffsetDragging] = useState(false);
 
   // Timer effect
   useEffect(() => {
@@ -152,6 +157,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setElapsedSeconds(0);
     setIsWorkoutActive(true);
     setIsMinimized(false);
+    setWorkoutSheetOffsetValue(null);
+    setIsWorkoutSheetOffsetDragging(false);
     setRoutineId(routineId || null);
     setRoutineName(routineName || null);
   };
@@ -165,6 +172,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setElapsedSeconds(0);
     setWorkoutExercises([]);
     setIsMinimized(false);
+    setWorkoutSheetOffsetValue(null);
+    setIsWorkoutSheetOffsetDragging(false);
     setRoutineId(null);
     setRoutineName(null);
   };
@@ -178,11 +187,15 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setElapsedSeconds(0);
     setWorkoutExercises([]);
     setIsMinimized(false);
+    setWorkoutSheetOffsetValue(null);
+    setIsWorkoutSheetOffsetDragging(false);
     setRoutineId(null);
     setRoutineName(null);
   };
 
   const minimizeWorkout = () => {
+    setWorkoutSheetOffsetValue(null);
+    setIsWorkoutSheetOffsetDragging(false);
     setIsMinimized(true);
   };
 
@@ -192,6 +205,11 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
   const updateWorkoutExercises = (exercises: ExerciseLog[]) => {
     setWorkoutExercises(exercises);
+  };
+
+  const setWorkoutSheetOffset = (offset: number | null, isDragging = false) => {
+    setWorkoutSheetOffsetValue(offset);
+    setIsWorkoutSheetOffsetDragging(Boolean(offset !== null && isDragging));
   };
 
   return (
@@ -205,12 +223,15 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         isMinimized,
         routineId,
         routineName,
+        workoutSheetOffset,
+        isWorkoutSheetOffsetDragging,
         startWorkout,
         finishWorkout,
         discardWorkout,
         minimizeWorkout,
         expandWorkout,
         updateWorkoutExercises,
+        setWorkoutSheetOffset,
       }}
     >
       {children}

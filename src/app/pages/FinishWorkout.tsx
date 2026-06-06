@@ -278,11 +278,11 @@ export function FinishWorkoutPage() {
   };
 
   const feelings = [
-    { value: 1, label: 'Very Easy' },
-    { value: 2, label: 'Easy' },
-    { value: 3, label: 'Moderate' },
-    { value: 4, label: 'Hard' },
-    { value: 5, label: 'Very Hard' },
+    { value: 1, labelLines: ['Very', 'Easy'] },
+    { value: 2, labelLines: ['', 'Easy'] },
+    { value: 3, labelLines: ['', 'Moderate'] },
+    { value: 4, labelLines: ['', 'Hard'] },
+    { value: 5, labelLines: ['Very', 'Hard'] },
   ];
 
   return (
@@ -417,13 +417,17 @@ export function FinishWorkoutPage() {
               <button
                 key={feeling.value}
                 onClick={() => setSessionFeeling(feeling.value)}
-                className={`premium-button flex min-h-[4.75rem] min-w-0 flex-col items-center justify-center p-1.5 text-center min-[380px]:p-2 ${
+                className={`premium-button flex min-h-[4.75rem] min-w-0 flex-col items-center justify-center gap-1 p-1.5 text-center min-[380px]:p-2 ${
                   sessionFeeling === feeling.value ? 'premium-button-primary' : 'premium-button-secondary text-zinc-400'
                 }`}
               >
-                <div className="stat-number text-lg mb-1">{feeling.value}</div>
-                <div className="max-w-full whitespace-normal break-words text-[10px] leading-tight min-[380px]:text-xs">
-                  {feeling.label}
+                <div className="stat-number flex h-6 items-center justify-center text-lg leading-none">{feeling.value}</div>
+                <div className="flex h-8 w-full flex-col items-center justify-center text-[10px] leading-tight min-[380px]:text-xs">
+                  {feeling.labelLines.map((line, index) => (
+                    <span key={`${feeling.value}-${index}`} className="block h-3.5 whitespace-nowrap">
+                      {line || '\u00A0'}
+                    </span>
+                  ))}
                 </div>
               </button>
             ))}

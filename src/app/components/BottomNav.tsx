@@ -1,8 +1,17 @@
 import { Link, useLocation } from 'react-router';
 import { Home, TrendingUp, Lightbulb, User } from 'lucide-react';
+import type { CSSProperties } from 'react';
 
-export function BottomNav() {
+interface BottomNavProps {
+  activePath?: string;
+  className?: string;
+  style?: CSSProperties;
+  ariaHidden?: boolean;
+}
+
+export function BottomNav({ activePath, className = '', style, ariaHidden = false }: BottomNavProps) {
   const location = useLocation();
+  const currentPath = activePath ?? location.pathname;
   
   const navItems = [
     { path: '/', icon: Home, label: 'Home' },
@@ -12,10 +21,14 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-zinc-950/88 backdrop-blur-xl safe-area-bottom">
+    <nav
+      className={`fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-zinc-950/88 backdrop-blur-xl safe-area-bottom ${className}`}
+      style={style}
+      aria-hidden={ariaHidden || undefined}
+    >
       <div className="max-w-md mx-auto flex justify-around items-center h-[68px] px-2">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive = currentPath === item.path;
           const Icon = item.icon;
           
           return (

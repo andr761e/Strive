@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, type PointerEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, type CSSProperties, type PointerEvent } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import {
   BookOpen,
@@ -38,12 +38,70 @@ import { useAuth } from '../contexts/AuthContext';
 import { DataService } from '../services/db';
 import { formatDurationClock } from '../utils/timeFormatting';
 import { ExerciseRankCard, getExerciseRank, type ExerciseRankResult } from '../features/exercise-ranks';
+import { BottomNav } from '../components/BottomNav';
+import { WorkoutCollapsedHeader } from '../components/WorkoutCollapsedHeader';
 
 interface InputState {
   exerciseId: string;
   setIndex: number;
   field: LoggingFieldKey;
   value: number;
+}
+
+function isInteractiveSheetDragTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest('button, a, input, textarea, select, [role="button"], [data-no-sheet-drag="true"]'));
+}
+
+const ACTIVE_WORKOUT_SHEET_TRANSITION_MS = 460;
+
+const ACTIVE_WORKOUT_COLLAPSED_BAR_HEIGHT = 68;
+const ACTIVE_WORKOUT_BOTTOM_NAV_HEIGHT = 68;
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getActiveWorkoutCollapsedOffset() {
+  if (typeof window === 'undefined') return 560;
+  return Math.max(0, window.innerHeight - ACTIVE_WORKOUT_BOTTOM_NAV_HEIGHT - ACTIVE_WORKOUT_COLLAPSED_BAR_HEIGHT);
+}
+
+function getActiveWorkoutCollapseThreshold() {
+  const collapsedOffset = getActiveWorkoutCollapsedOffset();
+  return Math.min(260, Math.max(128, collapsedOffset * 0.34));
+}
+
+function createExerciseLogsForWorkout(items: Array<Exercise | ExerciseLog>, userId?: string): ExerciseLog[] {
+  if (items.length === 0) return [];
+
+  if ('sets' in items[0]) {
+    return (items as ExerciseLog[]).map((exerciseLog) => ({
+      ...exerciseLog,
+      previousSets: userId
+        ? DataService.getPreviousWorkoutSets(userId, exerciseLog.exerciseId) ?? exerciseLog.previousSets
+        : exerciseLog.previousSets,
+    }));
+  }
+
+  return (items as Exercise[]).map((exercise) => ({
+    exerciseId: exercise.id,
+    exerciseName: exercise.name,
+    mainMuscles: exercise.mainMuscles,
+    sets: [],
+    previousSets: userId ? DataService.getPreviousWorkoutSets(userId, exercise.id) ?? undefined : undefined,
+  }));
+}
+
+function readOpenFromMinimizedFlag() {
+  if (typeof window === 'undefined') return false;
+
+  const shouldAnimate = window.sessionStorage.getItem('strive_open_workout_from_minimized') === '1';
+  if (shouldAnimate) {
+    window.sessionStorage.removeItem('strive_open_workout_from_minimized');
+  }
+
+  return shouldAnimate;
 }
 
 interface DraggableExerciseProps {
@@ -106,6 +164,12 @@ function createSetFromPrevious(setNumber: number, previous: WorkoutSet | undefin
   return nextSet;
 }
 
+function canCompleteSet(set: WorkoutSet, logging: ExerciseLoggingSchema) {
+  const hasRequiredValues = logging.fields.every((field) => !field.required || getSetFieldValue(set, field.key) > 0);
+  const hasLoggedValue = logging.fields.some((field) => getSetFieldValue(set, field.key) > 0);
+  return hasRequiredValues && hasLoggedValue;
+}
+
 interface SwipeSetRowProps {
   set: WorkoutSet;
   setIndex: number;
@@ -138,36 +202,54 @@ function SwipeSetRow({
   onDeleteSet,
 }: SwipeSetRowProps) {
   const startXRef = useRef<number | null>(null);
+  const swipeBaseOffsetRef = useRef(0);
+  const didSwipeRef = useRef(false);
   const [dragOffset, setDragOffset] = useState<number | null>(null);
   const [deleteRevealed, setDeleteRevealed] = useState(false);
   const isCompleted = set.completed;
-  const translateX = dragOffset ?? (deleteRevealed ? -72 : 0);
+  const isReadyToComplete = canCompleteSet(set, logging);
+  const canToggleCompletion = isCompleted || isReadyToComplete;
+  const translateX = isCompleted ? 0 : dragOffset ?? (deleteRevealed ? -72 : 0);
   const revealWidth = Math.abs(translateX);
   const revealOpacity = Math.min(1, revealWidth / 56);
 
+  useEffect(() => {
+    if (!isCompleted) return;
+
+    setDeleteRevealed(false);
+    setDragOffset(null);
+    startXRef.current = null;
+    didSwipeRef.current = false;
+  }, [isCompleted]);
+
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (isCompleted) return;
+
     startXRef.current = event.clientX;
-    setDragOffset(deleteRevealed ? -72 : 0);
+    swipeBaseOffsetRef.current = deleteRevealed ? -72 : 0;
+    didSwipeRef.current = false;
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (isCompleted) return;
     if (startXRef.current === null) return;
 
     const delta = event.clientX - startXRef.current;
-    const base = deleteRevealed ? -72 : 0;
-    const nextOffset = Math.max(-80, Math.min(0, base + delta));
     if (Math.abs(delta) > 8) {
+      didSwipeRef.current = true;
       event.preventDefault();
+      const nextOffset = Math.max(-80, Math.min(0, swipeBaseOffsetRef.current + delta));
+      setDragOffset(nextOffset);
     }
-    setDragOffset(nextOffset);
   };
 
   const handlePointerEnd = () => {
-    if (dragOffset !== null) {
+    if (didSwipeRef.current && dragOffset !== null) {
       setDeleteRevealed(dragOffset < -36);
     }
     setDragOffset(null);
     startXRef.current = null;
+    didSwipeRef.current = false;
   };
 
   return (
@@ -182,7 +264,7 @@ function SwipeSetRow({
         style={{
           width: `${revealWidth}px`,
           opacity: revealOpacity,
-          pointerEvents: deleteRevealed ? 'auto' : 'none',
+          pointerEvents: deleteRevealed && !isCompleted ? 'auto' : 'none',
         }}
         aria-label={`Delete set ${setIndex + 1}`}
       >
@@ -213,7 +295,13 @@ function SwipeSetRow({
           <button
             key={field.key}
             type="button"
-            onClick={() => !isCompleted && onOpenInput(setIndex, field.key, getSetFieldValue(set, field.key))}
+            data-bottom-input-switch="true"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!isCompleted) {
+                onOpenInput(setIndex, field.key, getSetFieldValue(set, field.key));
+              }
+            }}
             disabled={isCompleted}
             className={`active-workout-field min-w-0 w-full px-1 text-sm ${
               activeInput?.setIndex === setIndex && activeInput.field === field.key
@@ -228,13 +316,25 @@ function SwipeSetRow({
         ))}
         <button
           type="button"
-          onClick={() => onToggleSetCompletion(setIndex)}
+          onClick={() => {
+            if (canToggleCompletion) {
+              onToggleSetCompletion(setIndex);
+            }
+          }}
           className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
             isCompleted
               ? 'bg-green-500/20 text-green-300 border border-green-500/25'
-              : 'border border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10'
+              : isReadyToComplete
+                ? 'border border-blue-300/35 bg-blue-500/15 text-blue-100 shadow-[0_0_14px_rgba(59,130,246,0.14)] hover:bg-blue-500/22'
+                : 'border border-white/5 bg-black/25 text-zinc-700'
           }`}
-          title={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
+          title={
+            isCompleted
+              ? 'Mark as incomplete'
+              : isReadyToComplete
+                ? 'Mark as complete'
+                : 'Complete the required fields first'
+          }
         >
           <Check className="w-4 h-4" />
         </button>
@@ -274,14 +374,16 @@ function ReorderExercisesOverlay({ exercisesList, onClose, onSave }: ReorderExer
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragPreview, setDragPreview] = useState<ReorderDragPreview | null>(null);
   const draggingIndexRef = useRef<number | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     setDraftExercises(exercisesList);
   }, [exercisesList]);
 
-  const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
+  const handlePointerMove = (event: { clientX: number; clientY: number; preventDefault?: () => void }) => {
     if (draggingIndexRef.current === null) return;
 
+    event.preventDefault?.();
     setDragPreview((preview) =>
       preview
         ? {
@@ -307,10 +409,39 @@ function ReorderExercisesOverlay({ exercisesList, onClose, onSave }: ReorderExer
   };
 
   const handlePointerEnd = () => {
+    activePointerIdRef.current = null;
     draggingIndexRef.current = null;
     setDraggingIndex(null);
     setDragPreview(null);
   };
+
+  useEffect(() => {
+    if (draggingIndex === null) return;
+
+    const handleWindowPointerMove = (event: globalThis.PointerEvent) => {
+      if (activePointerIdRef.current !== null && event.pointerId !== activePointerIdRef.current) return;
+      handlePointerMove(event);
+    };
+    const handleWindowPointerEnd = (event: globalThis.PointerEvent) => {
+      if (activePointerIdRef.current !== null && event.pointerId !== activePointerIdRef.current) return;
+      handlePointerEnd();
+    };
+    const handleWindowBlur = () => {
+      handlePointerEnd();
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove, { passive: false });
+    window.addEventListener('pointerup', handleWindowPointerEnd);
+    window.addEventListener('pointercancel', handleWindowPointerEnd);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerEnd);
+      window.removeEventListener('pointercancel', handleWindowPointerEnd);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [draggingIndex]);
 
   return (
     <div className="fixed inset-0 z-50 bg-zinc-950 text-white">
@@ -350,6 +481,7 @@ function ReorderExercisesOverlay({ exercisesList, onClose, onSave }: ReorderExer
                   onPointerDown={(event) => {
                     const row = event.currentTarget.closest('[data-reorder-index]') as HTMLElement | null;
                     const rect = row?.getBoundingClientRect();
+                    activePointerIdRef.current = event.pointerId;
                     draggingIndexRef.current = index;
                     setDraggingIndex(index);
                     if (rect) {
@@ -690,32 +822,27 @@ function ActiveWorkoutPageContent() {
   const location = useLocation();
   const { weightIncrement, weightUnit } = useSettings();
   const { user } = useAuth();
-  const { startWorkout, minimizeWorkout, workoutExercises: contextExercises, updateWorkoutExercises, elapsedSeconds } = useWorkout();
+  const {
+    minimizeWorkout,
+    workoutExercises: contextExercises,
+    workoutName: contextWorkoutName,
+    updateWorkoutExercises,
+    elapsedSeconds,
+    workoutSheetOffset,
+    isWorkoutSheetOffsetDragging,
+    setWorkoutSheetOffset,
+  } = useWorkout();
   
-  const initialExercises = (location.state as any)?.exercises || [];
-  const workoutName = (location.state as any)?.workoutName || 'Active Workout';
-  const routineId = (location.state as any)?.routineId || null;
-  const routineName = (location.state as any)?.routineName || null;
+  const shouldAnimateOpenFromMinimized = useMemo(() => readOpenFromMinimizedFlag(), []);
+  const workoutName = contextWorkoutName || 'Active Workout';
+  const initialSheetDragOffset =
+    workoutSheetOffset ?? (shouldAnimateOpenFromMinimized ? getActiveWorkoutCollapsedOffset() : 0);
 
   const [workoutExercises, setWorkoutExercises] = useState<ExerciseLog[]>(() => {
     if (contextExercises.length > 0) {
       return contextExercises;
     }
-    // If initialExercises already has ExerciseLog format (with sets), use it directly
-    if (initialExercises.length > 0 && initialExercises[0].sets !== undefined) {
-      return initialExercises;
-    }
-    // Otherwise, convert from Exercise format
-    return initialExercises.map((ex: Exercise) => {
-      const previousSets = user ? DataService.getPreviousWorkoutSets(user.id, ex.id) : null;
-      return {
-        exerciseId: ex.id,
-        exerciseName: ex.name,
-        mainMuscles: ex.mainMuscles,
-        sets: [],
-        previousSets: previousSets || undefined,
-      };
-    });
+    return [];
   });
 
   const [expandedExtras, setExpandedExtras] = useState<Set<string>>(new Set());
@@ -731,57 +858,21 @@ function ActiveWorkoutPageContent() {
   const [infoModalMessage, setInfoModalMessage] = useState('');
   const [infoModalTitle, setInfoModalTitle] = useState('');
   const [selectedExerciseForHelp, setSelectedExerciseForHelp] = useState<string | null>(null);
-
-  // Initialize workout session
-  useEffect(() => {
-    if (contextExercises.length === 0 && initialExercises.length > 0) {
-      let exerciseLogs: ExerciseLog[];
-      
-      // If initialExercises already has ExerciseLog format, use it
-      if (initialExercises[0].sets !== undefined) {
-        exerciseLogs = initialExercises;
-      } else {
-        // Convert from Exercise format
-        exerciseLogs = initialExercises.map((ex: Exercise) => {
-          const previousSets = user ? DataService.getPreviousWorkoutSets(user.id, ex.id) : null;
-          return {
-            exerciseId: ex.id,
-            exerciseName: ex.name,
-            mainMuscles: ex.mainMuscles,
-            sets: [],
-            previousSets: previousSets || undefined,
-          };
-        });
-      }
-      startWorkout(workoutName, exerciseLogs, routineId, routineName);
-    }
-  }, []);
+  const [sheetDragOffset, setSheetDragOffset] = useState(initialSheetDragOffset);
+  const [isSheetDragging, setIsSheetDragging] = useState(false);
+  const [isSheetClosing, setIsSheetClosing] = useState(false);
+  const [isSheetOpening, setIsSheetOpening] = useState(shouldAnimateOpenFromMinimized);
+  const sheetDragStartYRef = useRef(0);
+  const sheetDragOffsetRef = useRef(initialSheetDragOffset);
+  const sheetPointerIdRef = useRef<number | null>(null);
+  const sheetCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSheetClosingRef = useRef(false);
+  const isSheetDraggingRef = useRef(false);
 
   // Sync with context whenever local state changes
   useEffect(() => {
     updateWorkoutExercises(workoutExercises);
   }, [workoutExercises]);
-
-  // Handle adding new exercises from selection page
-  useEffect(() => {
-    const addExercises = (location.state as any)?.addExercises;
-    if (addExercises && addExercises.length > 0) {
-      const newExerciseLogs = addExercises.map((ex: Exercise) => {
-        const previousSets = user ? DataService.getPreviousWorkoutSets(user.id, ex.id) : null;
-        return {
-          exerciseId: ex.id,
-          exerciseName: ex.name,
-          mainMuscles: ex.mainMuscles,
-          sets: [],
-          previousSets: previousSets || undefined,
-        };
-      });
-      setWorkoutExercises((prev) => [...prev, ...newExerciseLogs]);
-      
-      // Clear the state so it doesn't add again on re-render
-      navigate('/active-workout', { replace: true, state: {} });
-    }
-  }, [location.state]);
 
   const toggleExtras = (exerciseId: string) => {
     setExpandedExtras(prev => {
@@ -845,26 +936,15 @@ function ActiveWorkoutPageContent() {
   const toggleSetCompletion = (exerciseId: string, setIndex: number) => {
     const exercise = workoutExercises.find(ex => ex.exerciseId === exerciseId);
     const set = exercise?.sets[setIndex];
-    
-    // If trying to mark as complete, validate only the fields required by this exercise's logging schema.
+
     if (set && !set.completed) {
       const exerciseMeta = exercises.find((item) => item.id === exerciseId);
       const logging = getExerciseLogging(exerciseMeta);
-      const missingField = logging.fields.find((field) => field.required && getSetFieldValue(set, field.key) <= 0);
-      const hasAnyLoggedValue = logging.fields.some((field) => getSetFieldValue(set, field.key) > 0);
+      if (!canCompleteSet(set, logging)) {
+        return;
+      }
 
-      if (missingField) {
-        setInfoModalTitle('Missing Set Data');
-        setInfoModalMessage(`${missingField.label} must be greater than 0 for ${exercise?.exerciseName ?? 'this exercise'}.`);
-        setInfoModalOpen(true);
-        return;
-      }
-      if (!hasAnyLoggedValue) {
-        setInfoModalTitle('Missing Set Data');
-        setInfoModalMessage(`Log at least one value for ${exercise?.exerciseName ?? 'this exercise'} before completing the set.`);
-        setInfoModalOpen(true);
-        return;
-      }
+      closeInput();
     }
     
     setWorkoutExercises((prev) =>
@@ -1008,9 +1088,168 @@ function ActiveWorkoutPageContent() {
     navigate('/finish-workout');
   };
 
-  const handleMinimize = () => {
+  const clearSheetCloseTimeout = () => {
+    if (sheetCloseTimeoutRef.current) {
+      clearTimeout(sheetCloseTimeoutRef.current);
+      sheetCloseTimeoutRef.current = null;
+    }
+  };
+
+  const completeMinimize = () => {
+    clearSheetCloseTimeout();
+
+    sheetPointerIdRef.current = null;
+    sheetDragOffsetRef.current = 0;
+    isSheetDraggingRef.current = false;
+    isSheetClosingRef.current = false;
+    setIsSheetDragging(false);
+    setIsSheetClosing(false);
+    setIsSheetOpening(false);
+    setSheetDragOffset(0);
+    setWorkoutSheetOffset(null, false);
     minimizeWorkout();
-    navigate('/');
+  };
+
+  const handleMinimize = (withGestureAnimation = false) => {
+    closeInput();
+
+    if (!withGestureAnimation || typeof window === 'undefined') {
+      completeMinimize();
+      return;
+    }
+
+    clearSheetCloseTimeout();
+
+    sheetPointerIdRef.current = null;
+    isSheetDraggingRef.current = false;
+    isSheetClosingRef.current = true;
+    setIsSheetDragging(false);
+    setIsSheetClosing(true);
+    setIsSheetOpening(false);
+    setWorkoutSheetOffset(null, false);
+    const collapsedOffset = getActiveWorkoutCollapsedOffset();
+    sheetDragOffsetRef.current = collapsedOffset;
+    setSheetDragOffset(collapsedOffset);
+    sheetCloseTimeoutRef.current = setTimeout(() => {
+      completeMinimize();
+    }, ACTIVE_WORKOUT_SHEET_TRANSITION_MS);
+  };
+
+  useEffect(
+    () => () => {
+      if (sheetCloseTimeoutRef.current) {
+        clearTimeout(sheetCloseTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!shouldAnimateOpenFromMinimized) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      sheetDragOffsetRef.current = 0;
+      setSheetDragOffset(0);
+    });
+    const timeoutId = window.setTimeout(() => {
+      setIsSheetOpening(false);
+    }, ACTIVE_WORKOUT_SHEET_TRANSITION_MS + 40);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (workoutSheetOffset === null) return;
+
+    sheetDragOffsetRef.current = workoutSheetOffset;
+    setSheetDragOffset(workoutSheetOffset);
+    setIsSheetOpening(false);
+  }, [workoutSheetOffset]);
+
+  useEffect(() => {
+    if (!isSheetDragging) return;
+
+    const handleWindowPointerMove = (event: globalThis.PointerEvent) => {
+      if (sheetPointerIdRef.current !== null && event.pointerId !== sheetPointerIdRef.current) return;
+      if (!isSheetDraggingRef.current) return;
+
+      const deltaY = event.clientY - sheetDragStartYRef.current;
+      const maxOffset = getActiveWorkoutCollapsedOffset();
+      const clampedOffset = clampNumber(deltaY, 0, maxOffset);
+      sheetDragOffsetRef.current = clampedOffset;
+      setSheetDragOffset(clampedOffset);
+
+      if (Math.abs(deltaY) > 4) {
+        event.preventDefault();
+      }
+    };
+
+    const handleWindowPointerEnd = (event: globalThis.PointerEvent) => {
+      if (sheetPointerIdRef.current !== null && event.pointerId !== sheetPointerIdRef.current) return;
+      if (!isSheetDraggingRef.current) return;
+
+      const shouldMinimize = sheetDragOffsetRef.current > getActiveWorkoutCollapseThreshold();
+      sheetPointerIdRef.current = null;
+      isSheetDraggingRef.current = false;
+      setIsSheetDragging(false);
+
+      if (shouldMinimize) {
+        handleMinimize(true);
+        return;
+      }
+
+      sheetDragOffsetRef.current = 0;
+      setSheetDragOffset(0);
+    };
+
+    const handleWindowBlur = () => {
+      sheetPointerIdRef.current = null;
+      isSheetDraggingRef.current = false;
+      isSheetClosingRef.current = false;
+      setIsSheetDragging(false);
+      setIsSheetClosing(false);
+      setIsSheetOpening(false);
+      sheetDragOffsetRef.current = 0;
+      setSheetDragOffset(0);
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove, { passive: false });
+    window.addEventListener('pointerup', handleWindowPointerEnd);
+    window.addEventListener('pointercancel', handleWindowPointerEnd);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerEnd);
+      window.removeEventListener('pointercancel', handleWindowPointerEnd);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [isSheetDragging]);
+
+  const startSheetDrag = (event: PointerEvent<HTMLElement>) => {
+    if (isSheetOpening || isSheetClosingRef.current || isSheetClosing || sheetPointerIdRef.current !== null) {
+      event.preventDefault();
+      return;
+    }
+
+    clearSheetCloseTimeout();
+    closeInput();
+    sheetPointerIdRef.current = event.pointerId;
+    sheetDragStartYRef.current = event.clientY;
+    sheetDragOffsetRef.current = 0;
+    setSheetDragOffset(0);
+    isSheetClosingRef.current = false;
+    isSheetDraggingRef.current = true;
+    setIsSheetClosing(false);
+    setIsSheetOpening(false);
+    setIsSheetDragging(true);
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    event.preventDefault();
   };
 
   const handleSaveReorder = (nextExercises: ExerciseLog[]) => {
@@ -1126,15 +1365,100 @@ function ActiveWorkoutPageContent() {
     return results;
   }, [user?.weight, workoutExercises, workoutsForRank]);
 
+  const isSheetTranslating = sheetDragOffset > 0 || isSheetClosing || isSheetOpening;
+  const collapsedOffset = getActiveWorkoutCollapsedOffset();
+  const navRevealProgress = clampNumber(sheetDragOffset / Math.max(1, collapsedOffset), 0, 1);
+  const headerMorphProgress = clampNumber((navRevealProgress - 0.08) / 0.84, 0, 1);
+  const expandedHeaderOpacity = 1 - headerMorphProgress;
+  const headerMorphTransition = isSheetDragging || isWorkoutSheetOffsetDragging
+    ? 'none'
+    : `opacity ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+  const sheetBottomInset = ACTIVE_WORKOUT_BOTTOM_NAV_HEIGHT * navRevealProgress;
+  const sheetTransition = `transform ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1), height ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1), max-height ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+  const sheetDragStyle: CSSProperties | undefined = isSheetTranslating
+    ? {
+        transform: `translate3d(0, ${sheetDragOffset}px, 0)`,
+        height: `calc(100dvh - ${sheetDragOffset + sheetBottomInset}px)`,
+        maxHeight: `calc(100dvh - ${sheetDragOffset + sheetBottomInset}px)`,
+        minHeight: `${ACTIVE_WORKOUT_COLLAPSED_BAR_HEIGHT}px`,
+        overflowY: sheetDragOffset > 4 ? 'hidden' : undefined,
+        transition: isSheetDragging || isWorkoutSheetOffsetDragging ? 'none' : sheetTransition,
+      }
+    : undefined;
+
   return (
-    <div className="screen-shell active-workout-shell">
+    <>
+      <BottomNav
+        activePath={location.pathname}
+        className="active-workout-drag-nav"
+        ariaHidden
+        style={{
+          opacity: navRevealProgress,
+          transform: `translateY(${(1 - navRevealProgress) * 12}px)`,
+          transition: isSheetDragging || isWorkoutSheetOffsetDragging
+            ? 'none'
+            : `opacity ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+        }}
+      />
+      <div
+        className={`screen-shell active-workout-shell active-workout-sheet ${
+          isSheetDragging ? 'active-workout-shell-dragging' : ''
+        }`}
+        style={sheetDragStyle}
+      >
       {/* Header */}
-      <div className="sticky-header active-workout-topbar">
-        <div className="px-4 py-3">
+      <div
+        className="sticky-header active-workout-topbar"
+        onPointerDown={(event) => {
+          if (!isInteractiveSheetDragTarget(event.target)) {
+            startSheetDrag(event);
+          }
+        }}
+      >
+        <div
+          className="pointer-events-none absolute inset-x-2 top-0 z-10"
+          style={{
+            opacity: headerMorphProgress,
+            transform: `translate3d(0, ${(1 - headerMorphProgress) * 0.55}rem, 0)`,
+            transition: headerMorphTransition,
+          }}
+          aria-hidden={headerMorphProgress < 0.5}
+        >
+          <WorkoutCollapsedHeader
+            workoutName={workoutName}
+            elapsedSeconds={elapsedSeconds}
+            exerciseCount={workoutExercises.length}
+          />
+        </div>
+        <div
+          className="active-workout-expanded-header relative z-0 px-4 py-3"
+          style={{
+            opacity: expandedHeaderOpacity,
+            transform: `translate3d(0, ${headerMorphProgress * -0.35}rem, 0)`,
+            transition: headerMorphTransition,
+            pointerEvents: headerMorphProgress > 0.72 ? 'none' : undefined,
+          }}
+        >
+          <button
+            type="button"
+            onPointerDown={startSheetDrag}
+            className="active-workout-drag-handle mb-2 flex w-full touch-none items-center justify-center py-1"
+            aria-label="Drag to minimize workout"
+          >
+            <span />
+          </button>
           <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <button
-              onClick={handleMinimize}
+              type="button"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleMinimize(true);
+              }}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.035] text-zinc-400 transition-colors hover:bg-white/[0.06] hover:text-white"
               aria-label="Minimize workout"
             >
@@ -1151,7 +1475,11 @@ function ActiveWorkoutPageContent() {
             </div>
           </div>
           <button
+            type="button"
             onClick={handleFinishClick}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+            }}
             className="premium-button premium-button-primary flex h-10 min-h-10 w-10 shrink-0 items-center justify-center p-0"
             aria-label="Finish workout"
           >
@@ -1347,10 +1675,87 @@ function ActiveWorkoutPageContent() {
         title={infoModalTitle}
         message={infoModalMessage}
       />
-    </div>
+      </div>
+    </>
   );
 }
 
+export function ActiveWorkoutOverlay() {
+  const location = useLocation();
+  const { isWorkoutActive, isMinimized, workoutStartTime, workoutSheetOffset } = useWorkout();
+  const hiddenRoutes = new Set(['/active-workout', '/exercise-selection', '/finish-workout']);
+  const shouldRenderOverlay = isWorkoutActive && (!isMinimized || workoutSheetOffset !== null);
+
+  useEffect(() => {
+    if (!shouldRenderOverlay || hiddenRoutes.has(location.pathname)) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [shouldRenderOverlay, location.pathname]);
+
+  if (!shouldRenderOverlay || hiddenRoutes.has(location.pathname)) {
+    return null;
+  }
+
+  return <ActiveWorkoutPageContent key={workoutStartTime?.toISOString() ?? 'active-workout'} />;
+}
+
 export function ActiveWorkoutPage() {
-  return <ActiveWorkoutPageContent />;
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+  const {
+    isWorkoutActive,
+    workoutExercises,
+    startWorkout,
+    updateWorkoutExercises,
+    expandWorkout,
+  } = useWorkout();
+  const processedRef = useRef(false);
+
+  useEffect(() => {
+    if (processedRef.current) return;
+    processedRef.current = true;
+
+    const routeState = (location.state as any) || {};
+    const addExercises = Array.isArray(routeState.addExercises) ? routeState.addExercises : [];
+    const startingExercises = Array.isArray(routeState.exercises) ? routeState.exercises : [];
+
+    if (addExercises.length > 0 && isWorkoutActive) {
+      const existingIds = new Set(workoutExercises.map((exercise) => exercise.exerciseId));
+      const nextExerciseLogs = createExerciseLogsForWorkout(addExercises, user?.id).filter(
+        (exercise) => !existingIds.has(exercise.exerciseId),
+      );
+      updateWorkoutExercises([...workoutExercises, ...nextExerciseLogs]);
+      expandWorkout();
+      navigate('/', { replace: true, state: {} });
+      return;
+    }
+
+    if (startingExercises.length > 0) {
+      startWorkout(
+        routeState.workoutName || 'Active Workout',
+        createExerciseLogsForWorkout(startingExercises, user?.id),
+        routeState.routineId,
+        routeState.routineName,
+      );
+      navigate('/', { replace: true, state: {} });
+      return;
+    }
+
+    if (isWorkoutActive) {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('strive_open_workout_from_minimized', '1');
+      }
+      expandWorkout();
+    }
+
+    navigate('/', { replace: true, state: {} });
+  }, []);
+
+  return null;
 }

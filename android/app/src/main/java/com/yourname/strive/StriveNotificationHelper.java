@@ -202,16 +202,22 @@ final class StriveNotificationHelper {
     }
 
     private static void cancelReminderAlarm(Context context, String reminderId) {
+        int notificationId = notificationIdFor(reminderId);
         Intent intent = new Intent(context, WorkoutReminderReceiver.class).setAction(ACTION_WORKOUT_REMINDER);
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
             context,
-            notificationIdFor(reminderId),
+            notificationId,
             intent,
             pendingIntentFlags(PendingIntent.FLAG_UPDATE_CURRENT)
         );
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager != null) {
             alarmManager.cancel(pendingIntent);
+        }
+
+        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (notificationManager != null) {
+            notificationManager.cancel(notificationId);
         }
     }
 

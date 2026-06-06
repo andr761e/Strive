@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router';
 import { BottomNav } from './components/BottomNav';
 import { PersistentWorkoutBar } from './components/PersistentWorkoutBar';
 import { useEffect } from 'react';
+import { ActiveWorkoutOverlay } from './pages/ActiveWorkout';
 
 export function Layout() {
   const location = useLocation();
@@ -17,6 +18,7 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-zinc-950">
       <Outlet />
+      <ActiveWorkoutOverlay />
       <PersistentWorkoutBar />
       {!hideBottomNav && <BottomNav />}
     </div>
