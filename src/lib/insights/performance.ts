@@ -1,3 +1,4 @@
+import { getExerciseLiftedLoadVolume } from '../../app/utils/workoutVolume';
 import type { ExerciseSessionPerformance, ExerciseTrend, InsightWorkout, InsightWorkoutExercise, InsightExerciseSet } from './types';
 
 const FLAT_WINDOW = 4;
@@ -66,7 +67,7 @@ export function calculateSessionPerformance(
     workoutDate: workout.date,
     exerciseOrder,
     score: estimateOneRepMax(bestSet.weight, bestSet.reps),
-    totalVolume: validSets.reduce((sum, set) => sum + set.weight * set.reps, 0),
+    totalVolume: getExerciseLiftedLoadVolume({ ...exercise, sets: validSets }),
     validSets: validSets.length,
     bestSet,
   };

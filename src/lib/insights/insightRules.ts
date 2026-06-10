@@ -1,3 +1,4 @@
+import { getExerciseLiftedLoadVolume } from '../../app/utils/workoutVolume';
 import { commonInsightMuscles, getExerciseMetadata } from './exerciseMetadata';
 import { averagePerformance, collectExercisePerformances, estimateOneRepMax, isValidTrainingSet } from './performance';
 import type {
@@ -269,7 +270,7 @@ function hardSetCount(workout: InsightWorkout) {
 function workoutVolume(workout: InsightWorkout) {
   return workout.exercises.reduce(
     (sum, exercise) =>
-      sum + exercise.sets.filter((set) => isValidTrainingSet(set)).reduce((setSum, set) => setSum + set.weight * set.reps, 0),
+      sum + getExerciseLiftedLoadVolume({ ...exercise, sets: exercise.sets.filter((set) => isValidTrainingSet(set)) }),
     0,
   );
 }

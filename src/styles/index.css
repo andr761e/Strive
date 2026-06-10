@@ -786,6 +786,109 @@
     color: #bbf7d0;
   }
 
+  .bottom-input-panel {
+    border-color: var(--strive-border);
+    background:
+      linear-gradient(180deg, var(--strive-card-glaze), var(--strive-card-glaze-soft)),
+      color-mix(in srgb, var(--strive-surface-raised) 96%, var(--strive-bg) 4%);
+    color: var(--strive-text);
+    box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.42);
+  }
+
+  .bottom-input-panel-workout {
+    background:
+      linear-gradient(180deg, var(--strive-card-glaze), transparent 42%),
+      color-mix(in srgb, var(--strive-surface-raised) 94%, var(--strive-bg) 6%);
+  }
+
+  .bottom-input-header {
+    border-color: var(--strive-border);
+    color: var(--strive-text);
+  }
+
+  .bottom-input-header-workout {
+    border-color: var(--strive-accent-border);
+    background: linear-gradient(180deg, var(--strive-accent), var(--strive-accent-strong));
+    color: var(--strive-accent-contrast);
+  }
+
+  .bottom-input-title,
+  .bottom-input-value-text {
+    color: currentColor;
+  }
+
+  .bottom-input-header:not(.bottom-input-header-workout) .bottom-input-title,
+  .bottom-input-value-text {
+    color: var(--strive-text);
+  }
+
+  .bottom-input-close {
+    color: color-mix(in srgb, currentColor 72%, transparent);
+  }
+
+  .bottom-input-close:hover {
+    color: currentColor;
+  }
+
+  .bottom-input-muted {
+    color: var(--strive-muted);
+  }
+
+  .bottom-input-invalid {
+    color: var(--strive-danger);
+  }
+
+  .bottom-input-display,
+  .bottom-input-inline-value,
+  .bottom-input-value-stage {
+    border-color: var(--strive-border);
+    background: color-mix(in srgb, var(--strive-surface) 82%, var(--strive-text) 5%);
+    color: var(--strive-text);
+  }
+
+  .bottom-input-inline-value-selected,
+  .bottom-input-value-selected,
+  .bottom-input-wheel-selected {
+    border-color: var(--strive-accent-border);
+    background: var(--strive-accent-soft);
+    color: var(--strive-text);
+    --tw-ring-color: var(--strive-accent-border);
+    box-shadow: 0 0 18px var(--strive-accent-glow);
+  }
+
+  .bottom-input-value-line {
+    color: var(--strive-text);
+  }
+
+  .bottom-input-value-ready {
+    border-color: var(--strive-border-strong);
+    color: var(--strive-text);
+  }
+
+  .bottom-input-value-error {
+    border-color: var(--strive-danger);
+    color: var(--strive-danger);
+  }
+
+  .bottom-input-key {
+    color: var(--strive-text);
+  }
+
+  .bottom-input-key-muted,
+  .bottom-input-wheel-option {
+    color: var(--strive-muted);
+  }
+
+  .bottom-input-wheel-option:hover {
+    background: var(--strive-hover);
+    color: var(--strive-text);
+  }
+
+  .bottom-input-wheel-focus {
+    border-color: var(--strive-accent-border);
+    box-shadow: 0 0 22px var(--strive-accent-glow);
+  }
+
   .body-map-path:focus,
   .body-map-path:focus-visible {
     outline: none;
@@ -1317,6 +1420,13 @@
     background: color-mix(in srgb, var(--strive-surface) 86%, var(--strive-text) 4%);
   }
 
+  :root[data-theme='arctic'] .workout-field-complete,
+  :root[data-theme='chalk'] .workout-field-complete {
+    border-color: rgba(22, 163, 74, 0.28);
+    background: rgba(22, 163, 74, 0.1);
+    color: #166534;
+  }
+
   :root[data-theme='arctic'] .active-set-row,
   :root[data-theme='chalk'] .active-set-row {
     border-color: var(--strive-border);
@@ -1327,6 +1437,20 @@
   :root[data-theme='chalk'] .active-set-row-complete {
     border-color: rgba(22, 163, 74, 0.22);
     background: linear-gradient(90deg, rgba(22, 163, 74, 0.13), color-mix(in srgb, var(--strive-surface) 88%, var(--strive-text) 3%) 52%);
+  }
+
+  :root[data-theme='arctic'] .bottom-input-panel,
+  :root[data-theme='chalk'] .bottom-input-panel {
+    box-shadow: 0 -18px 46px rgba(15, 23, 42, 0.16);
+  }
+
+  :root[data-theme='arctic'] .bottom-input-display,
+  :root[data-theme='chalk'] .bottom-input-display,
+  :root[data-theme='arctic'] .bottom-input-inline-value,
+  :root[data-theme='chalk'] .bottom-input-inline-value,
+  :root[data-theme='arctic'] .bottom-input-value-stage,
+  :root[data-theme='chalk'] .bottom-input-value-stage {
+    background: color-mix(in srgb, var(--strive-surface) 78%, var(--strive-text) 4%);
   }
 
   :root[data-theme='arctic'] .empty-state,

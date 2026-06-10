@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router';
 import { ArrowUp, ArrowDown, Check, Clock, Dumbbell, Minus, Target, TrendingUp } from 'lucide-react';
 import { exercises, getExerciseLogging, type ExerciseLog, type MuscleGroup } from '../data/mockData';
 import { RankCelebrationOverlay, type WorkoutRankProgressItem } from '../features/exercise-ranks';
+import { getExerciseLiftedLoadVolume } from '../utils/workoutVolume';
 
 interface WorkoutSummaryData {
   workoutName: string;
@@ -212,7 +213,7 @@ export function WorkoutSummaryPage() {
           <h3 className="text-white font-medium mb-3">Exercises</h3>
           <div className="space-y-2">
             {summaryData.exercises.map((exercise, idx) => {
-              const totalVolume = exercise.sets.reduce((acc, set) => acc + (set.weight * set.reps), 0);
+              const totalVolume = getExerciseLiftedLoadVolume(exercise);
               const logging = getExerciseLogging(exercises.find((item) => item.id === exercise.exerciseId));
               const detail = logging.fields.some((field) => field.key === 'weight') && logging.fields.some((field) => field.key === 'reps')
                 ? `${exercise.sets.length} sets - ${(totalVolume / 1000).toFixed(1)}k kg`

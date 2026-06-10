@@ -25,6 +25,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { DataService } from '../services/db';
 import { schedulePostWorkoutReminders } from '../services/notifications';
 import { getWorkoutRankProgressItems } from '../features/exercise-ranks';
+import { getWorkoutLiftedLoadVolume } from '../utils/workoutVolume';
 
 export function FinishWorkoutPage() {
   const navigate = useNavigate();
@@ -65,10 +66,7 @@ export function FinishWorkoutPage() {
 
   const totalSets = workoutExercises.reduce((acc, ex) => acc + ex.sets.length, 0);
   const completedSets = workoutExercises.reduce((acc, ex) => acc + ex.sets.filter((set) => set.completed).length, 0);
-  const totalWeightLifted = workoutExercises.reduce(
-    (acc, exercise) => acc + exercise.sets.reduce((setAcc, set) => setAcc + set.weight * set.reps, 0),
-    0,
-  );
+  const totalWeightLifted = getWorkoutLiftedLoadVolume({ exercises: workoutExercises });
 
   const summaryStats = [
     {
@@ -176,10 +174,7 @@ export function FinishWorkoutPage() {
 
     const previousWorkouts = user ? DataService.getWorkoutsByUserId(user.id) : [];
     const totalLoggedSets = updatedExercises.reduce((acc, exercise) => acc + exercise.sets.length, 0);
-    const totalVolume = updatedExercises.reduce(
-      (acc, exercise) => acc + exercise.sets.reduce((setAcc, set) => setAcc + set.weight * set.reps, 0),
-      0,
-    );
+    const totalVolume = getWorkoutLiftedLoadVolume({ exercises: updatedExercises });
     const musclesTrained = updatedExercises.flatMap((exercise) => exercise.mainMuscles);
     const comparison = user
       ? DataService.getWorkoutComparison(user.id, totalVolume, totalLoggedSets)

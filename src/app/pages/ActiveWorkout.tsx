@@ -40,6 +40,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { DataService } from '../services/db';
 import { formatDurationClock } from '../utils/timeFormatting';
+import { getExerciseLiftedLoadVolume, getWorkoutLiftedLoadVolume } from '../utils/workoutVolume';
 import { ExerciseRankCard, getExerciseRank, type ExerciseRankResult } from '../features/exercise-ranks';
 import { BottomNav } from '../components/BottomNav';
 import { WorkoutCollapsedHeader } from '../components/WorkoutCollapsedHeader';
@@ -603,7 +604,7 @@ function DraggableExercise({
     gridTemplateColumns: `2rem minmax(3.9rem, 1.2fr) ${fieldGridColumns} 2rem`,
   };
   const completedSetCount = exercise.sets.filter((set) => set.completed).length;
-  const totalVolume = exercise.sets.reduce((total, set) => total + set.weight * set.reps, 0);
+  const totalVolume = getExerciseLiftedLoadVolume(exercise);
   const hasLoadVolume = loggingFields.some((field) => field.key === 'weight') && loggingFields.some((field) => field.key === 'reps');
   const hasRankProgression = Boolean(rankResult?.eligible);
   const visibleMuscles = exercise.mainMuscles.slice(0, 3);
@@ -1428,11 +1429,7 @@ function ActiveWorkoutPageContent() {
     (total, exercise) => total + exercise.sets.filter((set) => set.completed).length,
     0,
   );
-  const totalVolume = workoutExercises.reduce(
-    (total, exercise) =>
-      total + exercise.sets.reduce((setTotal, set) => setTotal + set.weight * set.reps, 0),
-    0,
-  );
+  const totalVolume = getWorkoutLiftedLoadVolume({ exercises: workoutExercises });
   const inputExercise = inputState ? workoutExercises.find((exercise) => exercise.exerciseId === inputState.exerciseId) : null;
   const inputExerciseData = inputExercise ? exercises.find((exercise) => exercise.id === inputExercise.exerciseId) : null;
   const inputField = inputState

@@ -10,6 +10,7 @@ import { RankBadge, getExerciseRank, type ExerciseRankResult, type ExerciseRankT
 import { DataService, type CurrentGoalPreference, type PersonalRecord, type WorkoutRecord } from '../services/db';
 import { exercises, getExerciseLogging, type LoggingFieldKey } from '../data/mockData';
 import { formatDurationClock } from '../utils/timeFormatting';
+import { getWorkoutLiftedLoadVolume } from '../utils/workoutVolume';
 
 const rankTierScore: Record<ExerciseRankTier, number> = {
   Unranked: -1,
@@ -191,12 +192,7 @@ export function ProfilePage() {
   const getWorkoutSetCount = (workout: WorkoutRecord) =>
     workout.exercises.reduce((total, exercise) => total + exercise.sets.length, 0);
 
-  const getWorkoutTotalWeight = (workout: WorkoutRecord) =>
-    workout.exercises.reduce(
-      (workoutTotal, exercise) =>
-        workoutTotal + exercise.sets.reduce((setTotal, set) => setTotal + set.weight * set.reps, 0),
-      0,
-    );
+  const getWorkoutTotalWeight = (workout: WorkoutRecord) => getWorkoutLiftedLoadVolume(workout);
 
   const formatWorkoutTotalWeight = (workout: WorkoutRecord) => {
     const total = getWorkoutTotalWeight(workout);

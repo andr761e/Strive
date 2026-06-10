@@ -7,6 +7,7 @@ import {
   type SetType,
 } from '../data/mockData';
 import { isStrongPassword, isValidEmail, isValidUsername } from '../utils/authValidation';
+import { getExerciseLiftedLoadVolume, getWorkoutLiftedLoadVolume } from '../utils/workoutVolume';
 
 const STORAGE_KEY = 'strive_app_database_v2';
 const LEGACY_STORAGE_KEY = 'strive_app_database_v1';
@@ -595,11 +596,11 @@ function saveDb(db: LocalDb) {
 }
 
 function exerciseVolume(exercise: ExerciseLog) {
-  return exercise.sets.reduce((total, set) => total + set.weight * set.reps, 0);
+  return getExerciseLiftedLoadVolume(exercise);
 }
 
 function workoutVolume(workout: WorkoutRecord) {
-  return workout.exercises.reduce((total, exercise) => total + exerciseVolume(exercise), 0);
+  return getWorkoutLiftedLoadVolume(workout);
 }
 
 const defaultMuscleContributionWeights = [1, 0.5, 0.35, 0.25];
@@ -1236,7 +1237,7 @@ export const DataService = {
       .reduce(
         (acc, workout) => {
           const workoutSets = workout.exercises.flatMap((exercise) => exercise.sets);
-          const weight = workoutSets.reduce((total, set) => total + set.weight * set.reps, 0);
+          const weight = workout.exercises.reduce((total, exercise) => total + exerciseVolume(exercise), 0);
           const reps = workoutSets.reduce((total, set) => total + set.reps, 0);
           return {
             totalSets: acc.totalSets + workoutSets.length,

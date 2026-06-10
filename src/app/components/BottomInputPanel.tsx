@@ -96,11 +96,11 @@ function TimeWheelColumn({ label, value, values, onChange, wrap = false }: TimeW
 
   return (
     <div className="min-w-0 flex-1">
-      <div className="mb-2 text-center text-[10px] font-semibold uppercase tracking-normal text-zinc-500">{label}</div>
+      <div className="bottom-input-muted mb-2 text-center text-[10px] font-semibold uppercase tracking-normal">{label}</div>
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="relative h-44 snap-y snap-mandatory overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-black/25 px-1 py-0"
+        className="bottom-input-display relative h-44 snap-y snap-mandatory overflow-y-auto overscroll-contain rounded-2xl border px-1 py-0"
       >
         <div className="h-16 shrink-0" />
         {displayValues.map((option, index) => {
@@ -111,7 +111,7 @@ function TimeWheelColumn({ label, value, values, onChange, wrap = false }: TimeW
               type="button"
               onClick={() => onChange(option)}
               className={`h-12 w-full snap-center rounded-xl text-center font-mono text-lg transition-colors ${
-                isSelected ? 'bg-blue-500/15 text-white ring-1 ring-blue-400/35' : 'text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-200'
+                isSelected ? 'bottom-input-wheel-selected ring-1' : 'bottom-input-wheel-option'
               }`}
             >
               {option.toString().padStart(2, '0')}
@@ -119,7 +119,7 @@ function TimeWheelColumn({ label, value, values, onChange, wrap = false }: TimeW
           );
         })}
         <div className="h-16 shrink-0" />
-        <div className="pointer-events-none absolute inset-x-1 top-1/2 h-12 -translate-y-1/2 rounded-xl border border-blue-400/20 shadow-[0_0_22px_rgba(59,130,246,0.12)]" />
+        <div className="bottom-input-wheel-focus pointer-events-none absolute inset-x-1 top-1/2 h-12 -translate-y-1/2 rounded-xl border" />
       </div>
     </div>
   );
@@ -367,38 +367,36 @@ export function BottomInputPanel({
       {/* Panel */}
       <div
         ref={panelRef}
-        className={`fixed left-0 right-0 z-50 border-t border-white/10 backdrop-blur-xl animate-slide-up ${
+        className={`bottom-input-panel fixed left-0 right-0 z-50 border-t backdrop-blur-xl animate-slide-up ${
           isWorkoutVariant ? 'workout-input-panel-offset' : 'bottom-0'
         } ${
           isWorkoutVariant
-            ? `rounded-t-xl bg-zinc-950/98 shadow-[0_-18px_60px_rgba(0,0,0,0.58)] ${
+            ? `bottom-input-panel-workout rounded-t-xl ${
                 isTimeMode ? '' : 'max-h-[38dvh] overflow-hidden'
               }`
-            : 'rounded-t-2xl bg-zinc-950/95'
+            : 'rounded-t-2xl'
         }`}
       >
         <div className={isWorkoutVariant ? 'mx-auto max-w-lg' : 'max-w-md mx-auto'}>
           {/* Header */}
           <div
-            className={`flex items-center justify-between border-b ${
+            className={`bottom-input-header flex items-center justify-between border-b ${
               isWorkoutVariant
-                ? 'border-blue-300/20 bg-blue-400 px-3 py-2 text-zinc-950'
-                : 'border-white/10 px-4 py-3'
+                ? 'bottom-input-header-workout px-3 py-2'
+                : 'px-4 py-3'
             }`}
           >
             <div>
-              <h3 className={`font-semibold ${isWorkoutVariant ? 'text-xs text-zinc-950' : 'text-sm text-white'}`}>{label}</h3>
+              <h3 className={`bottom-input-title font-semibold ${isWorkoutVariant ? 'text-xs' : 'text-sm'}`}>{label}</h3>
               {!isWorkoutVariant && (
-                <p className="text-xs text-zinc-400">
+                <p className="bottom-input-muted text-xs">
                   {isTimeMode ? 'Hours - Minutes - Seconds' : 'Numeric entry'}
                 </p>
               )}
             </div>
             <button
               onClick={onClose}
-              className={`p-2 transition-colors ${
-                isWorkoutVariant ? 'text-zinc-950/80 hover:text-zinc-950' : 'text-zinc-400 hover:text-white'
-              }`}
+              className="bottom-input-close p-2 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -406,12 +404,12 @@ export function BottomInputPanel({
 
           {isTimeMode ? (
             <div className="px-4 py-5">
-              <div className="mb-4 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-center">
-                <div className={`font-mono text-4xl font-bold ${isValid ? 'text-white' : 'text-red-400'}`}>
+              <div className="bottom-input-display mb-4 rounded-2xl border px-4 py-3 text-center">
+                <div className={`font-mono text-4xl font-bold ${isValid ? 'bottom-input-value-text' : 'bottom-input-invalid'}`}>
                   {formatDurationClock(value, unit)}
                 </div>
                 {!isValid && (
-                  <div className="mt-2 flex items-center justify-center gap-1 text-xs text-red-400">
+                  <div className="bottom-input-invalid mt-2 flex items-center justify-center gap-1 text-xs">
                     <AlertCircle className="h-3 w-3" />
                     <span>Required value</span>
                   </div>
@@ -445,34 +443,34 @@ export function BottomInputPanel({
           ) : (
             <>
               {/* Value Display */}
-              <div className={`${isWorkoutVariant ? 'hidden' : 'bg-black/20 px-4 py-6'}`}>
+              <div className={`${isWorkoutVariant ? 'hidden' : 'bottom-input-value-stage px-4 py-6'}`}>
                 <div className="flex items-center justify-center gap-3">
                   <button
                     onClick={handleDecrement}
                     className="premium-button premium-button-secondary flex h-12 w-12 items-center justify-center active:scale-95"
                   >
-                    <ChevronDown className="h-6 w-6 text-white" />
+                    <ChevronDown className="h-6 w-6" />
                   </button>
 
                   <div className="max-w-[180px] flex-1">
                     <div
                       role="status"
                       aria-live="polite"
-                      className={`w-full border-b-2 bg-transparent text-center font-mono text-4xl font-bold outline-none ${
+                      className={`bottom-input-value-line w-full border-b-2 bg-transparent text-center font-mono text-4xl font-bold outline-none ${
                         isDraftSelected
-                          ? 'rounded-lg border-blue-400 bg-blue-500/25 px-2 text-white'
+                          ? 'bottom-input-value-selected rounded-lg px-2'
                           : isValid
-                            ? 'border-zinc-700 text-white'
-                            : 'border-red-500 text-red-400'
+                            ? 'bottom-input-value-ready'
+                            : 'bottom-input-value-error'
                       }`}
                     >
                       {draftValue}
                     </div>
                     {unit && (
-                      <p className="mt-1 text-center text-sm text-zinc-400">{unit}</p>
+                      <p className="bottom-input-muted mt-1 text-center text-sm">{unit}</p>
                     )}
                     {!isValid && (
-                      <div className="mt-2 flex items-center justify-center gap-1 text-xs text-red-400">
+                      <div className="bottom-input-invalid mt-2 flex items-center justify-center gap-1 text-xs">
                         <AlertCircle className="h-3 w-3" />
                         <span>Required value</span>
                       </div>
@@ -483,7 +481,7 @@ export function BottomInputPanel({
                     onClick={handleIncrement}
                     className="premium-button premium-button-secondary flex h-12 w-12 items-center justify-center active:scale-95"
                   >
-                    <ChevronUp className="h-6 w-6 text-white" />
+                    <ChevronUp className="h-6 w-6" />
                   </button>
                 </div>
               </div>
@@ -494,25 +492,25 @@ export function BottomInputPanel({
                   <div className="mb-1.5 grid grid-cols-[1fr_1.35fr_1fr] gap-1.5">
                     <button
                       onClick={handleDecrement}
-                      className={`premium-button premium-button-secondary ${workoutKeyHeightClass} text-base text-white active:scale-95`}
+                      className={`premium-button premium-button-secondary bottom-input-key ${workoutKeyHeightClass} text-base active:scale-95`}
                     >
                       -{step}
                     </button>
                     <div
-                      className={`flex min-w-0 items-center justify-center rounded-lg border px-2 text-center transition-colors ${workoutKeyHeightClass} ${
+                      className={`bottom-input-inline-value flex min-w-0 items-center justify-center rounded-lg border px-2 text-center transition-colors ${workoutKeyHeightClass} ${
                         isDraftSelected
-                          ? 'border-blue-300/70 bg-blue-500/25 shadow-[0_0_18px_rgba(96,165,250,0.2)]'
-                          : 'border-white/10 bg-black/25'
+                          ? 'bottom-input-inline-value-selected'
+                          : ''
                       }`}
                     >
-                      <span className={`truncate font-mono text-xl font-bold ${isValid ? 'text-white' : 'text-red-400'}`}>
+                      <span className={`truncate font-mono text-xl font-bold ${isValid ? 'bottom-input-value-text' : 'bottom-input-invalid'}`}>
                         {draftValue}
                       </span>
-                      {unit && <span className="ml-1 shrink-0 text-xs text-zinc-400">{unit}</span>}
+                      {unit && <span className="bottom-input-muted ml-1 shrink-0 text-xs">{unit}</span>}
                     </div>
                     <button
                       onClick={handleIncrement}
-                      className={`premium-button premium-button-secondary ${workoutKeyHeightClass} text-base text-white active:scale-95`}
+                      className={`premium-button premium-button-secondary bottom-input-key ${workoutKeyHeightClass} text-base active:scale-95`}
                     >
                       +{step}
                     </button>
@@ -523,9 +521,9 @@ export function BottomInputPanel({
                     <button
                       key={num}
                       onClick={() => handleNumberClick(num)}
-                      className={`premium-button premium-button-secondary ${
+                      className={`premium-button premium-button-secondary bottom-input-key ${
                         isWorkoutVariant ? workoutKeyHeightClass : 'h-12'
-                      } text-xl text-white active:scale-95`}
+                      } text-xl active:scale-95`}
                     >
                       {num}
                     </button>
@@ -535,9 +533,9 @@ export function BottomInputPanel({
                   <button
                     onClick={allowDecimal ? handleDecimalClick : handleClear}
                     disabled={allowDecimal && draftValue.includes('.')}
-                    className={`premium-button premium-button-secondary ${
+                    className={`premium-button premium-button-secondary bottom-input-key bottom-input-key-muted ${
                       isWorkoutVariant ? workoutKeyHeightClass : 'h-12'
-                    } text-sm text-zinc-400 active:scale-95 ${
+                    } text-sm active:scale-95 ${
                       allowDecimal && draftValue.includes('.') ? 'cursor-not-allowed opacity-45' : ''
                     }`}
                   >
@@ -545,17 +543,17 @@ export function BottomInputPanel({
                   </button>
                   <button
                     onClick={() => handleNumberClick(0)}
-                    className={`premium-button premium-button-secondary ${
+                    className={`premium-button premium-button-secondary bottom-input-key ${
                       isWorkoutVariant ? workoutKeyHeightClass : 'h-12'
-                    } text-xl text-white active:scale-95`}
+                    } text-xl active:scale-95`}
                   >
                     0
                   </button>
                   <button
                     onClick={handleBackspace}
-                    className={`premium-button premium-button-secondary ${
+                    className={`premium-button premium-button-secondary bottom-input-key bottom-input-key-muted ${
                       isWorkoutVariant ? workoutKeyHeightClass : 'h-12'
-                    } text-sm text-zinc-400 active:scale-95`}
+                    } text-sm active:scale-95`}
                   >
                     Delete
                   </button>
@@ -565,7 +563,7 @@ export function BottomInputPanel({
                     <div className="col-span-2"></div>
                     <button
                       onClick={handleBackspace}
-                      className="premium-button premium-button-secondary h-12 text-sm text-zinc-400 active:scale-95"
+                      className="premium-button premium-button-secondary bottom-input-key bottom-input-key-muted h-12 text-sm active:scale-95"
                     >
                       Delete
                     </button>
