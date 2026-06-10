@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, ChevronRight, Copy, Mail, MessageSquare, RotateCcw, Save, Send, ShieldAlert, Trash2 } from 'lucide-react';
-import { useSettings } from '../contexts/SettingsContext';
+import { ArrowLeft, Check, ChevronRight, Copy, Mail, MessageSquare, Palette, RotateCcw, Save, Send, ShieldAlert, Trash2 } from 'lucide-react';
+import { appThemes, useSettings } from '../contexts/SettingsContext';
 import { Switch } from '../components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog';
@@ -20,11 +20,13 @@ export function SettingsPage() {
   const {
     weightUnit,
     weightIncrement,
+    theme,
     autoStartTimer,
     timerNotifications,
     workoutReminders,
     setWeightUnit,
     setWeightIncrement,
+    setTheme,
     setAutoStartTimer,
     setTimerNotifications,
     setWorkoutReminders,
@@ -133,6 +135,56 @@ export function SettingsPage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-semibold flex-1">Settings</h1>
+        </div>
+      </div>
+
+      <div className="px-4 py-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="section-label">Theme</h2>
+          <span className="premium-badge px-2.5 py-1 text-[11px]">App appearance</span>
+        </div>
+        <div className="grid gap-3 min-[420px]:grid-cols-2">
+          {appThemes.map((item) => {
+            const isSelected = theme === item.id;
+            const previewStyle = {
+              '--theme-preview-bg': item.preview.background,
+              '--theme-preview-surface': item.preview.surface,
+              '--theme-preview-accent': item.preview.accent,
+              '--theme-preview-accent-strong': item.preview.accentStrong,
+            } as CSSProperties;
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTheme(item.id)}
+                className={`theme-option p-4 ${isSelected ? 'theme-option-selected' : ''}`}
+                aria-pressed={isSelected}
+                style={previewStyle}
+              >
+                <div className="relative flex items-start gap-3">
+                  <div className="theme-preview flex h-14 w-14 shrink-0 items-end gap-1.5 p-2">
+                    <span className="theme-preview-accent h-7 w-2.5 rounded-full" />
+                    <span className="h-4 w-2.5 rounded-full bg-white/18" />
+                    <span className="h-9 w-2.5 rounded-full bg-white/10" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-semibold text-white">{item.name}</div>
+                      {isSelected ? (
+                        <span className="theme-selected-dot flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--strive-accent-contrast)]">
+                          <Check className="h-3.5 w-3.5" />
+                        </span>
+                      ) : (
+                        <Palette className="h-4 w-4 shrink-0 text-zinc-500" />
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-400">{item.description}</p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

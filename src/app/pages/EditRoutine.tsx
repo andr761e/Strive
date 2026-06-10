@@ -24,6 +24,7 @@ interface TemplateExercise {
   exerciseName: string;
   mainMuscles: MuscleGroup[];
   sets: TemplateSet[];
+  supersetGroupId?: string;
 }
 
 interface InputState {
@@ -264,6 +265,7 @@ export function EditRoutinePage() {
         exerciseName: log.exerciseName,
         mainMuscles: log.mainMuscles,
         sets: log.sets,
+        supersetGroupId: log.supersetGroupId,
       }));
     }
     // Otherwise, if we just have exercises list, create empty structure

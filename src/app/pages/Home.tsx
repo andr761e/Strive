@@ -98,14 +98,14 @@ export function HomePage() {
             </div>
           </button>
           <button
-            onClick={() => navigate('/manage-routines')}
+            onClick={startWorkout}
             className="premium-card-muted hover:bg-zinc-800/80 p-4 transition-colors"
           >
             <div className="flex flex-col items-center gap-2">
               <div className="p-2 bg-zinc-800/80 rounded-lg">
-                <Plus className="w-5 h-5 text-blue-400" />
+                <Dumbbell className="w-5 h-5 text-blue-400" />
               </div>
-              <span className="text-sm text-white">Routines</span>
+              <span className="text-sm text-white">Log Routine</span>
             </div>
           </button>
         </div>
@@ -148,6 +148,13 @@ export function HomePage() {
                 >
                   <Dumbbell className="w-5 h-5" />
                   <span>Choose Workout</span>
+                </button>
+                <button
+                  onClick={() => navigate('/manage-routines')}
+                  className="premium-button premium-button-secondary mt-3 w-full py-3 flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Manage Routines</span>
                 </button>
               </>
             ) : (

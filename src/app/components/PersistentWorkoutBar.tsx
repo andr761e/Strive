@@ -7,7 +7,14 @@ const COLLAPSED_BAR_HEIGHT = 68;
 const BOTTOM_NAV_HEIGHT = 68;
 const OPEN_DRAG_THRESHOLD = 96;
 const DRAG_START_THRESHOLD = 4;
-const OPEN_SETTLE_MS = 460;
+const OPEN_SETTLE_MS = 900;
+const MINIMIZED_BAR_HIDDEN_PATHS = new Set([
+  '/active-workout',
+  '/exercise-selection',
+  '/finish-workout',
+  '/manage-routines',
+  '/settings',
+]);
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -52,11 +59,13 @@ export function PersistentWorkoutBar() {
     setWorkoutSheetOffset(currentOffset, false);
     expandWorkout();
     window.requestAnimationFrame(() => {
-      setWorkoutSheetOffset(0, false);
+      window.requestAnimationFrame(() => {
+        setWorkoutSheetOffset(0, false);
+      });
     });
     settleTimeoutRef.current = setTimeout(() => {
       setWorkoutSheetOffset(null, false);
-    }, OPEN_SETTLE_MS + 40);
+    }, OPEN_SETTLE_MS + 80);
   };
 
   const finishClosed = () => {
@@ -65,11 +74,13 @@ export function PersistentWorkoutBar() {
     hasStartedSheetDragRef.current = false;
     setWorkoutSheetOffset(offsetRef.current, false);
     window.requestAnimationFrame(() => {
-      setWorkoutSheetOffset(collapsedOffset, false);
+      window.requestAnimationFrame(() => {
+        setWorkoutSheetOffset(collapsedOffset, false);
+      });
     });
     settleTimeoutRef.current = setTimeout(() => {
       setWorkoutSheetOffset(null, false);
-    }, OPEN_SETTLE_MS + 40);
+    }, OPEN_SETTLE_MS + 80);
   };
 
   useEffect(
@@ -176,7 +187,7 @@ export function PersistentWorkoutBar() {
     event.preventDefault();
   };
 
-  if (!isWorkoutActive || !isMinimized || location.pathname === '/active-workout') {
+  if (!isWorkoutActive || !isMinimized || MINIMIZED_BAR_HIDDEN_PATHS.has(location.pathname)) {
     return null;
   }
 

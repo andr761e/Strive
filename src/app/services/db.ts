@@ -67,6 +67,7 @@ export interface ExerciseLog {
   exerciseName: string;
   mainMuscles: MuscleGroup[];
   sets: WorkoutSet[];
+  supersetGroupId?: string;
 }
 
 export interface WorkoutRecord {
@@ -117,6 +118,7 @@ export interface RoutineExerciseLog {
   exerciseName: string;
   mainMuscles: MuscleGroup[];
   sets: RoutineSet[];
+  supersetGroupId?: string;
 }
 
 export interface WorkoutRoutine {
@@ -315,74 +317,6 @@ const starterRoutineSpecs: { name: string; exercises: StarterRoutineExerciseSpec
     ],
   },
   {
-    name: 'Full Body B',
-    exercises: [
-      { exerciseId: '16', sets: 3, reps: 10 },
-      { exerciseId: '18', sets: 3, reps: 8 },
-      { exerciseId: '52', sets: 3, reps: 12 },
-      { exerciseId: '14', sets: 3, reps: 15 },
-      { exerciseId: '11', sets: 2, reps: 15 },
-      { exerciseId: '244', sets: 3, reps: 15 },
-    ],
-  },
-  {
-    name: 'Full Body C',
-    exercises: [
-      { exerciseId: '7', sets: 3, reps: 6 },
-      { exerciseId: '2', sets: 3, reps: 12 },
-      { exerciseId: '4', sets: 3, reps: 10 },
-      { exerciseId: '17', sets: 3, reps: 15 },
-      { exerciseId: '19', sets: 2, reps: 20 },
-      { exerciseId: '245', sets: 3, reps: 15 },
-    ],
-  },
-  {
-    name: 'Upper Body A',
-    exercises: [
-      { exerciseId: '1', sets: 4, reps: 8 },
-      { exerciseId: '5', sets: 4, reps: 10 },
-      { exerciseId: '2', sets: 3, reps: 12 },
-      { exerciseId: '6', sets: 3, reps: 12 },
-      { exerciseId: '19', sets: 3, reps: 20 },
-      { exerciseId: '11', sets: 2, reps: 15 },
-      { exerciseId: '67', sets: 2, reps: 15 },
-    ],
-  },
-  {
-    name: 'Upper Body B',
-    exercises: [
-      { exerciseId: '18', sets: 4, reps: 8 },
-      { exerciseId: '4', sets: 4, reps: 10 },
-      { exerciseId: '32', sets: 3, reps: 12 },
-      { exerciseId: '52', sets: 3, reps: 12 },
-      { exerciseId: '20', sets: 3, reps: 20 },
-      { exerciseId: '10', sets: 2, reps: 10 },
-      { exerciseId: '9', sets: 2, reps: 15 },
-    ],
-  },
-  {
-    name: 'Lower Body A',
-    exercises: [
-      { exerciseId: '13', sets: 4, reps: 8 },
-      { exerciseId: '16', sets: 3, reps: 10 },
-      { exerciseId: '14', sets: 3, reps: 15 },
-      { exerciseId: '17', sets: 3, reps: 15 },
-      { exerciseId: '156', sets: 4, reps: 15 },
-      { exerciseId: '245', sets: 3, reps: 15 },
-    ],
-  },
-  {
-    name: 'Lower Body B',
-    exercises: [
-      { exerciseId: '7', sets: 3, reps: 6 },
-      { exerciseId: '28', sets: 3, reps: 10 },
-      { exerciseId: '29', sets: 3, reps: 12 },
-      { exerciseId: '15', sets: 3, reps: 15 },
-      { exerciseId: '161', sets: 4, reps: 20 },
-      { exerciseId: '240', sets: 3, duration: 60 },
-    ],
-  },
-  {
     name: 'Push',
     exercises: [
       { exerciseId: '1', sets: 4, reps: 8 },
@@ -460,44 +394,6 @@ function createStarterRoutinesForUser(userId: string, now = new Date().toISOStri
   });
 }
 
-function createSampleRoutineSet(exercise: Exercise): RoutineSet {
-  const set: RoutineSet = {
-    type: 'normal',
-    weight: 0,
-    reps: 0,
-    duration: undefined,
-    distance: undefined,
-    incline: undefined,
-  };
-
-  exercise.logging.fields.forEach((field) => {
-    if (field.key === 'weight') set.weight = 0;
-    if (field.key === 'reps') set.reps = 10;
-    if (field.key === 'duration') set.duration = exercise.logging.mode === 'timed_hold' ? 30 : 10;
-    if (field.key === 'distance') set.distance = field.unit === 'm' ? 40 : 1;
-    if (field.key === 'incline') set.incline = 5;
-  });
-
-  return set;
-}
-
-function createAlexAllExercisesRoutine(now = new Date().toISOString()): WorkoutRoutine {
-  return {
-    id: `${ALEX_SEED_USER_ID}-utility-all-exercises`,
-    userId: ALEX_SEED_USER_ID,
-    name: 'ALL',
-    exercises,
-    exerciseLogs: exercises.map((exercise) => ({
-      exerciseId: exercise.id,
-      exerciseName: exercise.name,
-      mainMuscles: exercise.mainMuscles,
-      sets: [createSampleRoutineSet(exercise)],
-    })),
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
 function coerceSet(set: Partial<WorkoutSet>, index: number): WorkoutSet {
   return {
     setNumber: index + 1,
@@ -521,6 +417,7 @@ function coerceExerciseLog(log: Partial<ExerciseLog>): ExerciseLog {
     exerciseName: log.exerciseName ?? exercise?.name ?? 'Exercise',
     mainMuscles: (log.mainMuscles ?? exercise?.mainMuscles ?? []) as MuscleGroup[],
     sets,
+    supersetGroupId: typeof log.supersetGroupId === 'string' ? log.supersetGroupId : undefined,
   };
 }
 
@@ -543,6 +440,7 @@ function normalizeRoutine(raw: Partial<WorkoutRoutine>, userId: string, fallback
     exerciseName: log.exerciseName,
     mainMuscles: log.mainMuscles,
     sets: log.sets.map(coerceRoutineSet),
+    supersetGroupId: typeof log.supersetGroupId === 'string' ? log.supersetGroupId : undefined,
   }));
   const routineExercises = raw.exercises?.filter(Boolean) ?? [];
 
@@ -625,25 +523,14 @@ function normalizeDatabase(input: Partial<LocalDb> | null | undefined) {
       exercises: workout.exercises.map(coerceExerciseLog),
     })) as WorkoutRecord[];
 
-  let routines = Array.isArray(input?.routines) ? input.routines : [];
+  const routines = Array.isArray(input?.routines) ? input.routines : [];
   const normalizedRoutines = routines
     .map((routine, index) => normalizeRoutine(routine, routine.userId, index))
-    .filter((routine) => userIds.has(routine.userId));
-
-  const alexUserExists = users.some((user) => user.id === ALEX_SEED_USER_ID);
-  if (alexUserExists) {
-    const alexAllRoutine = createAlexAllExercisesRoutine();
-    routines = [
-      alexAllRoutine,
-      ...normalizedRoutines.filter(
-        (routine) =>
-          routine.id !== alexAllRoutine.id &&
-          !(routine.userId === ALEX_SEED_USER_ID && routine.name.trim().toLowerCase() === 'all'),
-      ),
-    ];
-  } else {
-    routines = normalizedRoutines;
-  }
+    .filter(
+      (routine) =>
+        userIds.has(routine.userId) &&
+        !(routine.userId === ALEX_SEED_USER_ID && routine.name.trim().toLowerCase() === 'all'),
+    );
 
   const progressPreferences = users.map((user) => {
     const existing = input?.progressPreferences?.find((preference) => preference.userId === user.id);
@@ -653,7 +540,7 @@ function normalizeDatabase(input: Partial<LocalDb> | null | undefined) {
   return {
     users,
     workouts,
-    routines,
+    routines: normalizedRoutines,
     progressPreferences,
   };
 }
@@ -1244,6 +1131,7 @@ export const DataService = {
       exerciseId: exerciseLog.exerciseId,
       exerciseName: exerciseLog.exerciseName,
       mainMuscles: exerciseLog.mainMuscles,
+      supersetGroupId: exerciseLog.supersetGroupId,
       sets: exerciseLog.sets.map((set) => ({
         type: set.type ?? 'normal',
         weight: set.weight,

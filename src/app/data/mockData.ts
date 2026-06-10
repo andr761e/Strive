@@ -74,6 +74,7 @@ export interface ExerciseLog {
   exerciseName: string;
   mainMuscles: MuscleGroup[];
   sets: WorkoutSet[];
+  supersetGroupId?: string;
   previousPerformance?: string;
   previousSets?: WorkoutSet[];
 }
@@ -99,6 +100,7 @@ export interface TemplateExerciseLog {
   exerciseName: string;
   mainMuscles: MuscleGroup[];
   sets: TemplateSet[];
+  supersetGroupId?: string;
 }
 
 export interface TemplateSet {
@@ -155,7 +157,7 @@ const assistedFields: LoggingFieldDefinition[] = [
 ];
 
 const timeDistanceFields: LoggingFieldDefinition[] = [
-  { key: 'duration', label: 'Time', unit: 'min', step: 1, allowDecimal: true, required: true, max: 600 },
+  { key: 'duration', label: 'Time', unit: 'min', step: 1, allowDecimal: true, required: false, max: 600 },
   { key: 'distance', label: 'Dist', unit: 'km', step: 0.1, allowDecimal: true, required: false, max: 999 },
 ];
 
@@ -267,7 +269,7 @@ function inferLoggingSchema(name: string, mainMuscles: MuscleGroup[], equipment?
       'time_distance',
       'Time and floors',
       [
-        { key: 'duration', label: 'Time', unit: 'min', step: 1, allowDecimal: true, required: true, max: 600 },
+        { key: 'duration', label: 'Time', unit: 'min', step: 1, allowDecimal: true, required: false, max: 600 },
         { key: 'distance', label: 'Floors', unit: 'floors', step: 1, required: false, max: 999 },
       ],
       'Log StairMaster work by duration and floors climbed.',
@@ -364,6 +366,61 @@ function ex(id: string, name: string, mainMuscles: MuscleGroup[], equipment = in
 
 export function getExerciseLogging(exercise?: Pick<Exercise, 'logging'> | null): ExerciseLoggingSchema {
   return exercise?.logging ?? schema('load_reps', 'Weight x reps', loadRepsFields, 'Log load and reps.');
+}
+
+export function getWorkoutSetFieldValue(set: WorkoutSet, field: LoggingFieldKey) {
+  return Number(set[field] ?? 0);
+}
+
+export function getLoggingCompletionHint(logging: ExerciseLoggingSchema) {
+  switch (logging.mode) {
+    case 'load_reps':
+      return 'Log both load and reps.';
+    case 'bodyweight_reps':
+    case 'assisted_reps':
+      return 'Log reps. Added weight or assistance can stay at 0.';
+    case 'time_distance':
+    case 'time_distance_incline':
+      return 'Log either time or distance. Incline alone is not enough.';
+    case 'timed_reps':
+    case 'mobility':
+      return 'Log either time or reps.';
+    case 'loaded_distance':
+      return 'Log distance or time. Load alone is not enough.';
+    case 'timed_hold':
+      return 'Log hold time. Added weight can stay at 0.';
+    default:
+      return 'Log the required workout values.';
+  }
+}
+
+export function canCompleteLoggedSet(set: WorkoutSet, logging: ExerciseLoggingSchema) {
+  const hasField = (field: LoggingFieldKey) => logging.fields.some((item) => item.key === field);
+  const value = (field: LoggingFieldKey) => getWorkoutSetFieldValue(set, field);
+  const hasTime = hasField('duration') && value('duration') > 0;
+  const hasDistance = hasField('distance') && value('distance') > 0;
+  const hasReps = hasField('reps') && value('reps') > 0;
+  const hasLoad = hasField('weight') && value('weight') > 0;
+
+  switch (logging.mode) {
+    case 'load_reps':
+      return hasLoad && hasReps;
+    case 'bodyweight_reps':
+    case 'assisted_reps':
+      return hasReps;
+    case 'time_distance':
+    case 'time_distance_incline':
+      return hasTime || hasDistance;
+    case 'timed_reps':
+    case 'mobility':
+      return hasTime || hasReps;
+    case 'loaded_distance':
+      return hasDistance || hasTime;
+    case 'timed_hold':
+      return hasTime;
+    default:
+      return logging.fields.some((field) => getWorkoutSetFieldValue(set, field.key) > 0);
+  }
 }
 
 export const exercises: Exercise[] = [

@@ -39,6 +39,7 @@ const wheelItemHeight = 48;
 const wheelCycleCount = 7;
 const wheelMiddleCycle = Math.floor(wheelCycleCount / 2);
 const outsideTapMovementThreshold = 8;
+const maxDecimalPlaces = 2;
 
 function isBottomInputSwitchTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest('[data-bottom-input-switch="true"]'));
@@ -167,7 +168,7 @@ export function BottomInputPanel({
 
   useEffect(() => {
     if (isOpen) {
-      setDraftValue(value.toString());
+      setDraftValue(isTimeMode ? value.toString() : normalizeValue(value).toString());
       setIsDraftSelected(true);
     }
   }, [isOpen, selectionKey]);
@@ -234,24 +235,36 @@ export function BottomInputPanel({
     };
   }, [isOpen, onClose]);
 
+  const limitDecimalString = (nextString: string) => {
+    if (!allowDecimal || !nextString.includes('.')) return nextString;
+
+    const [wholePart, decimalPart = ''] = nextString.split('.');
+    return `${wholePart || '0'}.${decimalPart.slice(0, maxDecimalPlaces)}`;
+  };
+
+  const normalizeValue = (nextValue: number) => {
+    const clampedValue = Math.min(max, Math.max(min, nextValue));
+    if (!allowDecimal) return Math.round(clampedValue);
+    return Number(clampedValue.toFixed(maxDecimalPlaces));
+  };
+
   const setDisplayValue = (nextString: string) => {
-    setDraftValue(nextString);
+    const limitedString = limitDecimalString(nextString);
+    setDraftValue(limitedString);
     setIsDraftSelected(false);
-    const nextValue = parseFloat(nextString);
-    onChange(Number.isNaN(nextValue) ? 0 : Math.min(nextValue, max));
+    const nextValue = parseFloat(limitedString);
+    onChange(Number.isNaN(nextValue) ? 0 : normalizeValue(nextValue));
   };
 
   const handleIncrement = () => {
-    const newValue = Math.min(value + step, max);
-    const normalized = Number(newValue.toFixed(1));
+    const normalized = normalizeValue(value + step);
     setDraftValue(normalized.toString());
     setIsDraftSelected(false);
     onChange(normalized);
   };
 
   const handleDecrement = () => {
-    const newValue = Math.max(value - step, min);
-    const normalized = Number(newValue.toFixed(1));
+    const normalized = normalizeValue(value - step);
     setDraftValue(normalized.toString());
     setIsDraftSelected(false);
     onChange(normalized);
@@ -266,6 +279,11 @@ export function BottomInputPanel({
       return;
     }
     
+    if (allowDecimal && currentString.includes('.')) {
+      const decimalPart = currentString.split('.')[1] ?? '';
+      if (decimalPart.length >= maxDecimalPlaces) return;
+    }
+
     const newString = currentString + num.toString();
     const newValue = parseFloat(newString);
     

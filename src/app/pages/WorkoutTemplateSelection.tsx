@@ -23,6 +23,7 @@ export function WorkoutTemplateSelectionPage() {
           exerciseId: log.exerciseId,
           exerciseName: log.exerciseName,
           mainMuscles: log.mainMuscles,
+          supersetGroupId: log.supersetGroupId,
           sets: log.sets.map((set, idx) => ({
             setNumber: idx + 1,
             weight: set.weight,

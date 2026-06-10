@@ -7,12 +7,14 @@ import {
   ChevronUp,
   Clock,
   GripVertical,
+  Link2,
   ListOrdered,
   MoreVertical,
   Plus,
   ArrowRight,
   RefreshCw,
   Trash2,
+  Unlink,
   X,
 } from 'lucide-react';
 import {
@@ -23,6 +25,7 @@ import {
   type LoggingFieldKey,
   type SetType,
   type WorkoutSet,
+  canCompleteLoggedSet,
   exercises,
   getExerciseLogging,
 } from '../data/mockData';
@@ -53,7 +56,8 @@ function isInteractiveSheetDragTarget(target: EventTarget | null) {
   return Boolean(target.closest('button, a, input, textarea, select, [role="button"], [data-no-sheet-drag="true"]'));
 }
 
-const ACTIVE_WORKOUT_SHEET_TRANSITION_MS = 460;
+const ACTIVE_WORKOUT_SHEET_TRANSITION_MS = 900;
+const ACTIVE_WORKOUT_SHEET_EASING = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
 
 const ACTIVE_WORKOUT_COLLAPSED_BAR_HEIGHT = 68;
 const ACTIVE_WORKOUT_BOTTOM_NAV_HEIGHT = 68;
@@ -106,6 +110,7 @@ function readOpenFromMinimizedFlag() {
 
 interface DraggableExerciseProps {
   exercise: ExerciseLog;
+  allExercises: ExerciseLog[];
   showExtras: boolean;
   onToggleExtras: () => void;
   onAddSet: () => void;
@@ -116,6 +121,8 @@ interface DraggableExerciseProps {
   onShowAlternatives: () => void;
   onShowHowToLog: () => void;
   onOpenReorder: () => void;
+  onOpenSupersetPicker: () => void;
+  onClearSuperset: () => void;
   onRemoveExercise: () => void;
   rankResult?: ExerciseRankResult | null;
   activeInput?: InputState | null;
@@ -165,9 +172,26 @@ function createSetFromPrevious(setNumber: number, previous: WorkoutSet | undefin
 }
 
 function canCompleteSet(set: WorkoutSet, logging: ExerciseLoggingSchema) {
-  const hasRequiredValues = logging.fields.every((field) => !field.required || getSetFieldValue(set, field.key) > 0);
-  const hasLoggedValue = logging.fields.some((field) => getSetFieldValue(set, field.key) > 0);
-  return hasRequiredValues && hasLoggedValue;
+  return canCompleteLoggedSet(set, logging);
+}
+
+function createSupersetGroupId() {
+  return `superset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeSupersetGroups(exerciseLogs: ExerciseLog[]) {
+  const groupCounts = new Map<string, number>();
+
+  exerciseLogs.forEach((exerciseLog) => {
+    if (!exerciseLog.supersetGroupId) return;
+    groupCounts.set(exerciseLog.supersetGroupId, (groupCounts.get(exerciseLog.supersetGroupId) ?? 0) + 1);
+  });
+
+  return exerciseLogs.map((exerciseLog) =>
+    exerciseLog.supersetGroupId && (groupCounts.get(exerciseLog.supersetGroupId) ?? 0) < 2
+      ? { ...exerciseLog, supersetGroupId: undefined }
+      : exerciseLog,
+  );
 }
 
 interface SwipeSetRowProps {
@@ -547,6 +571,7 @@ function ReorderExercisesOverlay({ exercisesList, onClose, onSave }: ReorderExer
 
 function DraggableExercise({
   exercise,
+  allExercises,
   showExtras,
   onToggleExtras,
   onAddSet,
@@ -557,6 +582,8 @@ function DraggableExercise({
   onShowAlternatives,
   onShowHowToLog,
   onOpenReorder,
+  onOpenSupersetPicker,
+  onClearSuperset,
   onRemoveExercise,
   rankResult,
   activeInput,
@@ -581,6 +608,9 @@ function DraggableExercise({
   const hasRankProgression = Boolean(rankResult?.eligible);
   const visibleMuscles = exercise.mainMuscles.slice(0, 3);
   const hiddenMuscleCount = Math.max(0, exercise.mainMuscles.length - visibleMuscles.length);
+  const supersetPartner = exercise.supersetGroupId
+    ? allExercises.find((item) => item.exerciseId !== exercise.exerciseId && item.supersetGroupId === exercise.supersetGroupId)
+    : null;
 
   const getSetTypeLabel = (setIndex: number) => {
     const set = exercise.sets[setIndex];
@@ -631,6 +661,16 @@ function DraggableExercise({
         {exerciseData && <ExerciseThumbnail exercise={exerciseData} size="md" />}
         
         <div className="min-w-0 flex-1">
+          {exercise.supersetGroupId && (
+            <div className="mb-1.5 flex min-w-0 items-center gap-2">
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-blue-300/25 bg-blue-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-normal text-blue-200 shadow-[0_0_16px_rgba(59,130,246,0.12)]">
+                <Link2 className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  Superset{supersetPartner ? ` with ${supersetPartner.exerciseName}` : ''}
+                </span>
+              </span>
+            </div>
+          )}
           <h3 className="truncate text-base font-semibold leading-tight text-white">{exercise.exerciseName}</h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {visibleMuscles.map((muscle) => (
@@ -694,6 +734,30 @@ function DraggableExercise({
                 <RefreshCw className="h-4 w-4 text-blue-300" />
                 Suggest Alternative
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onOpenSupersetPicker();
+                }}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-zinc-100 transition-colors hover:bg-white/[0.06]"
+              >
+                <Link2 className="h-4 w-4 text-blue-300" />
+                {exercise.supersetGroupId ? 'Change Superset' : 'Add to Superset'}
+              </button>
+              {exercise.supersetGroupId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onClearSuperset();
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-zinc-100 transition-colors hover:bg-white/[0.06]"
+                >
+                  <Unlink className="h-4 w-4 text-zinc-300" />
+                  Remove Superset
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -858,6 +922,7 @@ function ActiveWorkoutPageContent() {
   const [infoModalMessage, setInfoModalMessage] = useState('');
   const [infoModalTitle, setInfoModalTitle] = useState('');
   const [selectedExerciseForHelp, setSelectedExerciseForHelp] = useState<string | null>(null);
+  const [selectedExerciseForSuperset, setSelectedExerciseForSuperset] = useState<string | null>(null);
   const [sheetDragOffset, setSheetDragOffset] = useState(initialSheetDragOffset);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const [isSheetClosing, setIsSheetClosing] = useState(false);
@@ -999,10 +1064,52 @@ function ActiveWorkoutPageContent() {
 
   const removeExercise = () => {
     if (exerciseToDelete) {
-      setWorkoutExercises((prev) => prev.filter((ex) => ex.exerciseId !== exerciseToDelete));
+      setWorkoutExercises((prev) => normalizeSupersetGroups(prev.filter((ex) => ex.exerciseId !== exerciseToDelete)));
       setExerciseToDelete(null);
       setDeleteExerciseDialogOpen(false);
     }
+  };
+
+  const openSupersetPicker = (exerciseId: string) => {
+    closeInput();
+    setSelectedExerciseForSuperset(exerciseId);
+  };
+
+  const assignSuperset = (sourceExerciseId: string, partnerExerciseId: string) => {
+    const sourceExercise = workoutExercises.find((exercise) => exercise.exerciseId === sourceExerciseId);
+    const partnerExercise = workoutExercises.find((exercise) => exercise.exerciseId === partnerExerciseId);
+    if (!sourceExercise || !partnerExercise) return;
+
+    const previousGroups = new Set(
+      [sourceExercise.supersetGroupId, partnerExercise.supersetGroupId].filter((groupId): groupId is string => Boolean(groupId)),
+    );
+    const nextGroupId = createSupersetGroupId();
+
+    setWorkoutExercises((prev) =>
+      normalizeSupersetGroups(
+        prev.map((exercise) => {
+          if (exercise.exerciseId === sourceExerciseId || exercise.exerciseId === partnerExerciseId) {
+            return { ...exercise, supersetGroupId: nextGroupId };
+          }
+
+          if (exercise.supersetGroupId && previousGroups.has(exercise.supersetGroupId)) {
+            return { ...exercise, supersetGroupId: undefined };
+          }
+
+          return exercise;
+        }),
+      ),
+    );
+    setSelectedExerciseForSuperset(null);
+  };
+
+  const clearSuperset = (exerciseId: string) => {
+    const groupId = workoutExercises.find((exercise) => exercise.exerciseId === exerciseId)?.supersetGroupId;
+    if (!groupId) return;
+
+    setWorkoutExercises((prev) =>
+      prev.map((exercise) => (exercise.supersetGroupId === groupId ? { ...exercise, supersetGroupId: undefined } : exercise)),
+    );
   };
 
   const addNewExercise = (exercise: Exercise) => {
@@ -1056,6 +1163,7 @@ function ActiveWorkoutPageContent() {
                 exerciseName: newExercise.name,
                 mainMuscles: newExercise.mainMuscles,
                 sets: [],
+                supersetGroupId: oldExercise.supersetGroupId,
                 previousSets: user ? DataService.getPreviousWorkoutSets(user.id, newExercise.id) ?? undefined : undefined,
               }
             : ex
@@ -1128,11 +1236,17 @@ function ActiveWorkoutPageContent() {
     setIsSheetOpening(false);
     setWorkoutSheetOffset(null, false);
     const collapsedOffset = getActiveWorkoutCollapsedOffset();
-    sheetDragOffsetRef.current = collapsedOffset;
-    setSheetDragOffset(collapsedOffset);
+    const startOffset = sheetDragOffsetRef.current;
+    setSheetDragOffset(startOffset);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        sheetDragOffsetRef.current = collapsedOffset;
+        setSheetDragOffset(collapsedOffset);
+      });
+    });
     sheetCloseTimeoutRef.current = setTimeout(() => {
       completeMinimize();
-    }, ACTIVE_WORKOUT_SHEET_TRANSITION_MS);
+    }, ACTIVE_WORKOUT_SHEET_TRANSITION_MS + 80);
   };
 
   useEffect(
@@ -1153,7 +1267,7 @@ function ActiveWorkoutPageContent() {
     });
     const timeoutId = window.setTimeout(() => {
       setIsSheetOpening(false);
-    }, ACTIVE_WORKOUT_SHEET_TRANSITION_MS + 40);
+    }, ACTIVE_WORKOUT_SHEET_TRANSITION_MS + 80);
 
     return () => {
       window.cancelAnimationFrame(frameId);
@@ -1162,12 +1276,16 @@ function ActiveWorkoutPageContent() {
   }, []);
 
   useEffect(() => {
-    if (workoutSheetOffset === null) return;
+    if (workoutSheetOffset === null) {
+      setIsSheetOpening(false);
+      return;
+    }
 
     sheetDragOffsetRef.current = workoutSheetOffset;
     setSheetDragOffset(workoutSheetOffset);
-    setIsSheetOpening(false);
-  }, [workoutSheetOffset]);
+    setIsSheetClosing(false);
+    setIsSheetOpening(!isWorkoutSheetOffsetDragging);
+  }, [isWorkoutSheetOffsetDragging, workoutSheetOffset]);
 
   useEffect(() => {
     if (!isSheetDragging) return;
@@ -1365,6 +1483,13 @@ function ActiveWorkoutPageContent() {
     return results;
   }, [user?.weight, workoutExercises, workoutsForRank]);
 
+  const supersetSourceExercise = selectedExerciseForSuperset
+    ? workoutExercises.find((exercise) => exercise.exerciseId === selectedExerciseForSuperset) ?? null
+    : null;
+  const supersetPartnerOptions = supersetSourceExercise
+    ? workoutExercises.filter((exercise) => exercise.exerciseId !== supersetSourceExercise.exerciseId)
+    : [];
+
   const isSheetTranslating = sheetDragOffset > 0 || isSheetClosing || isSheetOpening;
   const collapsedOffset = getActiveWorkoutCollapsedOffset();
   const navRevealProgress = clampNumber(sheetDragOffset / Math.max(1, collapsedOffset), 0, 1);
@@ -1372,9 +1497,9 @@ function ActiveWorkoutPageContent() {
   const expandedHeaderOpacity = 1 - headerMorphProgress;
   const headerMorphTransition = isSheetDragging || isWorkoutSheetOffsetDragging
     ? 'none'
-    : `opacity ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+    : `opacity ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}, transform ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}`;
   const sheetBottomInset = ACTIVE_WORKOUT_BOTTOM_NAV_HEIGHT * navRevealProgress;
-  const sheetTransition = `transform ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1), height ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1), max-height ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+  const sheetTransition = `transform ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}, height ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}, max-height ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}`;
   const sheetDragStyle: CSSProperties | undefined = isSheetTranslating
     ? {
         transform: `translate3d(0, ${sheetDragOffset}px, 0)`,
@@ -1397,7 +1522,7 @@ function ActiveWorkoutPageContent() {
           transform: `translateY(${(1 - navRevealProgress) * 12}px)`,
           transition: isSheetDragging || isWorkoutSheetOffsetDragging
             ? 'none'
-            : `opacity ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+            : `opacity ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}, transform ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}`,
         }}
       />
       <div
@@ -1509,6 +1634,7 @@ function ActiveWorkoutPageContent() {
           <DraggableExercise
             key={exercise.exerciseId}
             exercise={exercise}
+            allExercises={workoutExercises}
             showExtras={expandedExtras.has(exercise.exerciseId)}
             onToggleExtras={() => toggleExtras(exercise.exerciseId)}
             onAddSet={() => addSet(exercise.exerciseId)}
@@ -1519,6 +1645,8 @@ function ActiveWorkoutPageContent() {
             onShowAlternatives={() => showAlternatives(exercise.exerciseId)}
             onShowHowToLog={() => showHowToLog(exercise.exerciseId)}
             onOpenReorder={() => setReorderExercisesOpen(true)}
+            onOpenSupersetPicker={() => openSupersetPicker(exercise.exerciseId)}
+            onClearSuperset={() => clearSuperset(exercise.exerciseId)}
             onRemoveExercise={() => confirmRemoveExercise(exercise.exerciseId)}
             rankResult={rankResultsByExerciseId.get(exercise.exerciseId)}
             activeInput={inputState}
@@ -1564,6 +1692,71 @@ function ActiveWorkoutPageContent() {
           onSave={handleSaveReorder}
         />
       )}
+
+      {/* Superset Picker Dialog */}
+      <Dialog
+        open={Boolean(selectedExerciseForSuperset)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedExerciseForSuperset(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add to Superset</DialogTitle>
+            <DialogDescription>
+              {supersetSourceExercise
+                ? `Choose one exercise to pair with ${supersetSourceExercise.exerciseName}.`
+                : 'Choose one exercise to pair.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-2">
+            {supersetPartnerOptions.length > 0 ? (
+              supersetPartnerOptions.map((exerciseLog) => {
+                const exerciseData = exercises.find((exercise) => exercise.id === exerciseLog.exerciseId);
+                const isCurrentPartner =
+                  Boolean(supersetSourceExercise?.supersetGroupId) &&
+                  exerciseLog.supersetGroupId === supersetSourceExercise?.supersetGroupId;
+
+                return (
+                  <button
+                    key={exerciseLog.exerciseId}
+                    type="button"
+                    onClick={() => {
+                      if (supersetSourceExercise) {
+                        assignSuperset(supersetSourceExercise.exerciseId, exerciseLog.exerciseId);
+                      }
+                    }}
+                    className={`premium-row w-full p-3 text-left transition-colors flex items-center gap-3 hover:bg-white/[0.035] ${
+                      isCurrentPartner ? 'border-blue-400/40 bg-blue-500/10' : ''
+                    }`}
+                  >
+                    {exerciseData && <ExerciseThumbnail exercise={exerciseData} size="sm" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-white">{exerciseLog.exerciseName}</div>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {exerciseLog.mainMuscles.slice(0, 3).map((muscle) => (
+                          <span key={muscle} className="premium-badge px-2 py-0.5 text-[11px] text-blue-200">
+                            {muscle}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    {exerciseLog.supersetGroupId && (
+                      <span className="shrink-0 rounded-full border border-blue-300/25 bg-blue-500/12 px-2 py-1 text-[10px] font-semibold uppercase tracking-normal text-blue-200">
+                        Superset
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="empty-state p-4 text-sm text-zinc-400">
+                Add another exercise to this workout before creating a superset.
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Alternative Exercise Dialog */}
       <Dialog open={alternativeDialogOpen} onOpenChange={setAlternativeDialogOpen}>

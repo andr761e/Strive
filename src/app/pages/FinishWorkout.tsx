@@ -13,7 +13,13 @@ import {
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
 import { ExerciseThumbnail } from '../components/ExerciseThumbnail';
-import { exercises, getExerciseLogging, type ExerciseLog, type LoggingFieldKey, type WorkoutSet } from '../data/mockData';
+import {
+  canCompleteLoggedSet,
+  exercises,
+  getExerciseLogging,
+  getLoggingCompletionHint,
+  type ExerciseLog,
+} from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { DataService } from '../services/db';
@@ -97,8 +103,6 @@ export function FinishWorkoutPage() {
     setValidationDialogOpen(true);
   };
 
-  const getSetFieldValue = (set: WorkoutSet, field: LoggingFieldKey) => Number(set[field] ?? 0);
-
   const buildRoutineFromWorkout = (name: string, sourceExercises: ExerciseLog[]) => {
     const routineExercises = sourceExercises
       .map((exerciseLog) => exercises.find((exercise) => exercise.id === exerciseLog.exerciseId))
@@ -107,6 +111,7 @@ export function FinishWorkoutPage() {
       exerciseId: exerciseLog.exerciseId,
       exerciseName: exerciseLog.exerciseName,
       mainMuscles: exerciseLog.mainMuscles,
+      supersetGroupId: exerciseLog.supersetGroupId,
       sets: exerciseLog.sets.map((set) => ({
         type: set.type ?? 'normal',
         weight: set.weight,
@@ -139,17 +144,11 @@ export function FinishWorkoutPage() {
       const logging = getExerciseLogging(exerciseMeta);
 
       for (const set of exercise.sets) {
-        const missingField = logging.fields.find((field) => field.required && getSetFieldValue(set, field.key) <= 0);
-        const hasAnyLoggedValue = logging.fields.some((field) => getSetFieldValue(set, field.key) > 0);
-        if (missingField) {
+        if (!canCompleteLoggedSet(set, logging)) {
           showValidation(
             'Invalid Set Data',
-            `${missingField.label} must be greater than 0 for ${exercise.exerciseName}.`,
+            `${exercise.exerciseName}: ${getLoggingCompletionHint(logging)}`,
           );
-          return;
-        }
-        if (!hasAnyLoggedValue) {
-          showValidation('Invalid Set Data', `Log at least one value for ${exercise.exerciseName} before finishing.`);
           return;
         }
       }
@@ -308,7 +307,7 @@ export function FinishWorkoutPage() {
         <div className="px-3 pb-4 flex justify-center">
           <button
             onClick={() => setDiscardDialogOpen(true)}
-            className="flex items-center gap-2 text-zinc-500 hover:text-red-400 text-sm transition-colors"
+            className="flex items-center gap-2 text-sm text-red-400"
           >
             <XCircle className="w-4 h-4" />
             <span>Discard Workout</span>

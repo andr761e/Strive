@@ -29,13 +29,13 @@ interface BodyMapProps {
   className?: string;
 }
 
-const neutralFill = '#20232a';
-const neutralStroke = '#5b6472';
-const selectedFill = '#3b82f6';
-const selectedStroke = '#93c5fd';
+const neutralFill = 'var(--strive-bodymap-muscle-fill)';
+const neutralStroke = 'var(--strive-bodymap-stroke)';
+const selectedFill = 'var(--strive-bodymap-selected-fill)';
+const selectedStroke = 'var(--strive-bodymap-selected-stroke)';
 
 const statusColors: Record<string, string> = {
-  progressing: '#3b82f6',
+  progressing: 'var(--strive-accent)',
   balanced: '#22c55e',
   watch: '#eab308',
   undertrained: '#f97316',
@@ -46,7 +46,7 @@ const statusColors: Record<string, string> = {
 const visibleStructureSlugs = new Set<BodyPartSlug>(['head', 'hair', 'neck', 'hands', 'feet']);
 
 const tailwindColorMap: Record<string, string> = {
-  'bg-blue-500': '#3b82f6',
+  'bg-blue-500': 'var(--strive-accent)',
   'bg-green-500': '#22c55e',
   'bg-yellow-500': '#eab308',
   'bg-orange-500': '#f97316',
@@ -65,6 +65,12 @@ function getIntensity(status?: BodyMapMuscleStatus) {
   if (!status) return 0;
   if (status.weeklySets === undefined) return 0.65;
   return Math.max(0.25, Math.min(1, status.weeklySets / 18));
+}
+
+function getStatusGlow(statusColor: string, intensity: number) {
+  const blur = 5 + intensity * 8;
+  if (statusColor.startsWith('var(')) return `drop-shadow(0 0 ${blur}px var(--strive-accent-glow))`;
+  return `drop-shadow(0 0 ${blur}px ${statusColor}66)`;
 }
 
 function getBodyParts(gender: BodyMapGender, side: BodyMapSide) {
@@ -109,7 +115,7 @@ function getPathState({
       stroke: selectedStroke,
       strokeWidth: 5,
       opacity: 0.96,
-      glow: 'drop-shadow(0 0 10px rgba(59, 130, 246, 0.55))',
+      glow: 'drop-shadow(0 0 10px var(--strive-accent-glow))',
       isInteractive,
     };
   }
@@ -120,18 +126,18 @@ function getPathState({
       stroke: statusColor,
       strokeWidth: 2.4 + intensity * 2,
       opacity: 0.34 + intensity * 0.52,
-      glow: `drop-shadow(0 0 ${5 + intensity * 8}px ${statusColor}66)`,
+      glow: getStatusGlow(statusColor, intensity),
       isInteractive,
     };
   }
 
   if (isHovered && isInteractive) {
     return {
-      fill: '#1e3a8a',
+      fill: 'var(--strive-accent-soft)',
       stroke: selectedStroke,
       strokeWidth: 3,
       opacity: 0.78,
-      glow: 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.35))',
+      glow: 'drop-shadow(0 0 8px var(--strive-accent-glow))',
       isInteractive,
     };
   }
@@ -140,7 +146,7 @@ function getPathState({
 
   return {
     fill: partNeutralFill(slug),
-    stroke: isInteractive || isVisibleStructure ? neutralStroke : '#343a46',
+    stroke: isInteractive || isVisibleStructure ? neutralStroke : 'var(--strive-bodymap-soft-stroke)',
     strokeWidth: isInteractive ? 1.1 : isVisibleStructure ? 1.25 : 0.65,
     opacity: isInteractive ? 0.64 : isVisibleStructure ? 0.82 : 0.48,
     glow: 'none',
@@ -150,9 +156,9 @@ function getPathState({
 
 function partNeutralFill(slug?: BodyPartSlug) {
   if (!slug) return neutralFill;
-  if (slug === 'hair') return '#2b3240';
-  if (slug === 'head' || slug === 'neck') return '#242a35';
-  if (['hands', 'feet', 'ankles', 'knees'].includes(slug)) return '#1c222c';
+  if (slug === 'hair') return 'var(--strive-bodymap-hair-fill)';
+  if (slug === 'head' || slug === 'neck') return 'var(--strive-bodymap-structure-fill)';
+  if (['hands', 'feet', 'ankles', 'knees'].includes(slug)) return 'var(--strive-bodymap-endpoint-fill)';
   return neutralFill;
 }
 
@@ -186,11 +192,11 @@ function BodyMapFigure({
 
   return (
     <div
-      className="min-w-0 rounded-xl border border-slate-400/25 bg-slate-800/45 p-2 shadow-inner shadow-white/[0.04]"
+      className="body-map-panel min-w-0 p-2"
       onPointerLeave={() => setHoveredSlug(undefined)}
     >
-      <div className="mb-1 text-center text-[11px] uppercase text-zinc-500">{side}</div>
-      <Wrapper side={side} scale={1} border="rgba(148, 163, 184, 0.42)" className="mx-auto h-auto max-h-[460px] w-full max-w-[270px]">
+      <div className="body-map-side-label mb-1 text-center text-[11px] uppercase">{side}</div>
+      <Wrapper side={side} scale={1} border="var(--strive-bodymap-outline)" className="mx-auto h-auto max-h-[460px] w-full max-w-[270px]">
         {parts.flatMap((part) => {
           const slug = part.slug;
           const muscle = getMuscleForSlug(slug);
@@ -279,7 +285,7 @@ export function BodyMap({
       {colorMode === 'status' && (
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-400 sm:flex sm:flex-wrap sm:justify-center">
           {[
-            ['#3b82f6', 'Progressing'],
+            ['var(--strive-accent)', 'Progressing'],
             ['#22c55e', 'Balanced'],
             ['#eab308', 'Watch'],
             ['#f97316', 'Undertrained'],

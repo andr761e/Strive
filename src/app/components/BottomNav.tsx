@@ -22,7 +22,7 @@ export function BottomNav({ activePath, className = '', style, ariaHidden = fals
 
   return (
     <nav
-      className={`fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-zinc-950/88 backdrop-blur-xl safe-area-bottom ${className}`}
+      className={`bottom-nav fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-xl safe-area-bottom ${className}`}
       style={style}
       aria-hidden={ariaHidden || undefined}
     >
@@ -39,11 +39,11 @@ export function BottomNav({ activePath, className = '', style, ariaHidden = fals
                 isActive ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
-              <div className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-blue-500/15 text-blue-300' : ''}`}>
+              <div className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bottom-nav-icon-active' : ''}`}>
                 <Icon className="w-5 h-5" />
               </div>
               <span className="text-[11px] mt-0.5">{item.label}</span>
-              {isActive && <span className="absolute top-1.5 h-1 w-6 rounded-full bg-blue-400/80" />}
+              {isActive && <span className="bottom-nav-active-pill absolute top-1.5 h-1 w-6 rounded-full" />}
             </Link>
           );
         })}

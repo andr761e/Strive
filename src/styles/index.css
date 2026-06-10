@@ -179,12 +179,18 @@
 }
 
 @layer base {
-  :root {
+  :root,
+  :root[data-theme='strive'] {
     --strive-bg: #06070a;
     --strive-bg-soft: #090b10;
     --strive-surface: #101217;
     --strive-surface-raised: #151820;
     --strive-surface-hover: #1a1e27;
+    --strive-row: rgba(21, 24, 32, 0.82);
+    --strive-input-bg: rgba(10, 12, 17, 0.92);
+    --strive-hover: rgba(255, 255, 255, 0.04);
+    --strive-nav-bg: rgba(6, 7, 10, 0.88);
+    --strive-header-bg: rgba(6, 7, 10, 0.88);
     --strive-border: rgba(148, 163, 184, 0.14);
     --strive-border-strong: rgba(148, 163, 184, 0.22);
     --strive-text: #f5f7fb;
@@ -192,18 +198,405 @@
     --strive-subtle: #687080;
     --strive-accent: #3b82f6;
     --strive-accent-strong: #2563eb;
+    --strive-accent-text: #bfdbfe;
+    --strive-accent-icon: #60a5fa;
+    --strive-accent-contrast: #ffffff;
+    --strive-accent-soft: rgba(59, 130, 246, 0.14);
+    --strive-accent-softer: rgba(59, 130, 246, 0.08);
+    --strive-accent-border: rgba(96, 165, 250, 0.34);
+    --strive-accent-glow: rgba(59, 130, 246, 0.2);
     --strive-success: #22c55e;
     --strive-warning: #f59e0b;
     --strive-danger: #ef4444;
+    --strive-card-glaze: rgba(255, 255, 255, 0.032);
+    --strive-card-glaze-soft: rgba(255, 255, 255, 0.012);
+    --strive-focus-ring: rgba(96, 165, 250, 0.85);
+    --strive-workout-top: #080a0f;
+    --strive-bodymap-panel-bg: rgba(15, 23, 42, 0.62);
+    --strive-bodymap-panel-border: rgba(148, 163, 184, 0.28);
+    --strive-bodymap-muscle-fill: #212936;
+    --strive-bodymap-structure-fill: #2b3443;
+    --strive-bodymap-hair-fill: #343f50;
+    --strive-bodymap-endpoint-fill: #232c39;
+    --strive-bodymap-stroke: #738196;
+    --strive-bodymap-soft-stroke: #465366;
+    --strive-bodymap-outline: rgba(148, 163, 184, 0.58);
+    --strive-bodymap-selected-fill: var(--strive-accent);
+    --strive-bodymap-selected-stroke: #bfdbfe;
     --strive-radius: 12px;
     --strive-radius-sm: 8px;
     --strive-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
     --strive-shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.22);
   }
 
+  :root[data-theme='iron'] {
+    --strive-bg: #050606;
+    --strive-bg-soft: #080a0b;
+    --strive-surface: #101315;
+    --strive-surface-raised: #161a1d;
+    --strive-surface-hover: #20262a;
+    --strive-row: rgba(22, 26, 29, 0.9);
+    --strive-input-bg: rgba(8, 10, 11, 0.94);
+    --strive-hover: rgba(226, 232, 240, 0.045);
+    --strive-nav-bg: rgba(5, 6, 6, 0.9);
+    --strive-header-bg: rgba(5, 6, 6, 0.9);
+    --strive-border: rgba(203, 213, 225, 0.13);
+    --strive-border-strong: rgba(203, 213, 225, 0.23);
+    --strive-text: #f4f7f8;
+    --strive-muted: #a2abb4;
+    --strive-subtle: #69737c;
+    --strive-accent: #cbd5e1;
+    --strive-accent-strong: #94a3b8;
+    --strive-accent-text: #e5e7eb;
+    --strive-accent-icon: #cbd5e1;
+    --strive-accent-contrast: #071012;
+    --strive-accent-soft: rgba(203, 213, 225, 0.13);
+    --strive-accent-softer: rgba(203, 213, 225, 0.07);
+    --strive-accent-border: rgba(203, 213, 225, 0.28);
+    --strive-accent-glow: rgba(203, 213, 225, 0.12);
+    --strive-success: #34d399;
+    --strive-warning: #fbbf24;
+    --strive-danger: #f87171;
+    --strive-card-glaze: rgba(226, 232, 240, 0.032);
+    --strive-card-glaze-soft: rgba(226, 232, 240, 0.01);
+    --strive-focus-ring: rgba(203, 213, 225, 0.72);
+    --strive-workout-top: #070909;
+    --strive-bodymap-panel-bg: rgba(17, 24, 27, 0.68);
+    --strive-bodymap-panel-border: rgba(203, 213, 225, 0.26);
+    --strive-bodymap-muscle-fill: #22282d;
+    --strive-bodymap-structure-fill: #303840;
+    --strive-bodymap-hair-fill: #3b4550;
+    --strive-bodymap-endpoint-fill: #252d33;
+    --strive-bodymap-stroke: #7f8b98;
+    --strive-bodymap-soft-stroke: #4f5a65;
+    --strive-bodymap-outline: rgba(203, 213, 225, 0.58);
+    --strive-bodymap-selected-fill: var(--strive-accent);
+    --strive-bodymap-selected-stroke: #f8fafc;
+    --strive-shadow: 0 16px 38px rgba(0, 0, 0, 0.38);
+    --strive-shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.24);
+  }
+
+  :root[data-theme='ember'] {
+    --strive-bg: #080504;
+    --strive-bg-soft: #0d0705;
+    --strive-surface: #15100d;
+    --strive-surface-raised: #1c1410;
+    --strive-surface-hover: #281a12;
+    --strive-row: rgba(28, 20, 16, 0.9);
+    --strive-input-bg: rgba(12, 7, 5, 0.94);
+    --strive-hover: rgba(251, 146, 60, 0.045);
+    --strive-nav-bg: rgba(8, 5, 4, 0.9);
+    --strive-header-bg: rgba(8, 5, 4, 0.9);
+    --strive-border: rgba(251, 146, 60, 0.13);
+    --strive-border-strong: rgba(251, 146, 60, 0.24);
+    --strive-text: #fff7ed;
+    --strive-muted: #b8a99e;
+    --strive-subtle: #7c6b61;
+    --strive-accent: #f97316;
+    --strive-accent-strong: #ea580c;
+    --strive-accent-text: #fed7aa;
+    --strive-accent-icon: #fb923c;
+    --strive-accent-contrast: #120804;
+    --strive-accent-soft: rgba(249, 115, 22, 0.15);
+    --strive-accent-softer: rgba(249, 115, 22, 0.08);
+    --strive-accent-border: rgba(251, 146, 60, 0.34);
+    --strive-accent-glow: rgba(249, 115, 22, 0.2);
+    --strive-success: #22c55e;
+    --strive-warning: #facc15;
+    --strive-danger: #fb7185;
+    --strive-card-glaze: rgba(255, 237, 213, 0.032);
+    --strive-card-glaze-soft: rgba(255, 237, 213, 0.01);
+    --strive-focus-ring: rgba(251, 146, 60, 0.78);
+    --strive-workout-top: #0c0705;
+    --strive-bodymap-panel-bg: rgba(32, 18, 11, 0.72);
+    --strive-bodymap-panel-border: rgba(251, 146, 60, 0.25);
+    --strive-bodymap-muscle-fill: #302119;
+    --strive-bodymap-structure-fill: #3d2a20;
+    --strive-bodymap-hair-fill: #4c3528;
+    --strive-bodymap-endpoint-fill: #35251d;
+    --strive-bodymap-stroke: #aa7b5f;
+    --strive-bodymap-soft-stroke: #614636;
+    --strive-bodymap-outline: rgba(251, 146, 60, 0.5);
+    --strive-bodymap-selected-fill: var(--strive-accent);
+    --strive-bodymap-selected-stroke: #fed7aa;
+    --strive-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+    --strive-shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.28);
+  }
+
+  :root[data-theme='focus'] {
+    --strive-bg: #050607;
+    --strive-bg-soft: #08090b;
+    --strive-surface: #101315;
+    --strive-surface-raised: #15191b;
+    --strive-surface-hover: #1d2426;
+    --strive-row: rgba(18, 22, 24, 0.88);
+    --strive-input-bg: rgba(7, 10, 11, 0.94);
+    --strive-hover: rgba(45, 212, 191, 0.04);
+    --strive-nav-bg: rgba(5, 6, 7, 0.9);
+    --strive-header-bg: rgba(5, 6, 7, 0.9);
+    --strive-border: rgba(148, 163, 184, 0.12);
+    --strive-border-strong: rgba(148, 163, 184, 0.2);
+    --strive-text: #f7fbfb;
+    --strive-muted: #9aa7a7;
+    --strive-subtle: #647072;
+    --strive-accent: #2dd4bf;
+    --strive-accent-strong: #14b8a6;
+    --strive-accent-text: #ccfbf1;
+    --strive-accent-icon: #5eead4;
+    --strive-accent-contrast: #031312;
+    --strive-accent-soft: rgba(45, 212, 191, 0.12);
+    --strive-accent-softer: rgba(45, 212, 191, 0.06);
+    --strive-accent-border: rgba(94, 234, 212, 0.28);
+    --strive-accent-glow: rgba(45, 212, 191, 0.12);
+    --strive-success: #22c55e;
+    --strive-warning: #eab308;
+    --strive-danger: #f87171;
+    --strive-card-glaze: rgba(236, 254, 255, 0.025);
+    --strive-card-glaze-soft: rgba(236, 254, 255, 0.008);
+    --strive-focus-ring: rgba(94, 234, 212, 0.7);
+    --strive-workout-top: #07090a;
+    --strive-bodymap-panel-bg: rgba(16, 24, 26, 0.7);
+    --strive-bodymap-panel-border: rgba(94, 234, 212, 0.2);
+    --strive-bodymap-muscle-fill: #202a2c;
+    --strive-bodymap-structure-fill: #2b3739;
+    --strive-bodymap-hair-fill: #354548;
+    --strive-bodymap-endpoint-fill: #242f31;
+    --strive-bodymap-stroke: #789194;
+    --strive-bodymap-soft-stroke: #4a5b5e;
+    --strive-bodymap-outline: rgba(148, 163, 184, 0.58);
+    --strive-bodymap-selected-fill: var(--strive-accent);
+    --strive-bodymap-selected-stroke: #ccfbf1;
+    --strive-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+    --strive-shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  :root[data-theme='vault'] {
+    --strive-bg: #050505;
+    --strive-bg-soft: #090807;
+    --strive-surface: #141312;
+    --strive-surface-raised: #1b1916;
+    --strive-surface-hover: #29241b;
+    --strive-row: rgba(27, 25, 22, 0.9);
+    --strive-input-bg: rgba(8, 7, 6, 0.94);
+    --strive-hover: rgba(245, 197, 66, 0.045);
+    --strive-nav-bg: rgba(5, 5, 5, 0.9);
+    --strive-header-bg: rgba(5, 5, 5, 0.9);
+    --strive-border: rgba(245, 197, 66, 0.13);
+    --strive-border-strong: rgba(245, 197, 66, 0.24);
+    --strive-text: #faf7ef;
+    --strive-muted: #b3aa98;
+    --strive-subtle: #756d5e;
+    --strive-accent: #f5c542;
+    --strive-accent-strong: #d99b16;
+    --strive-accent-text: #fde68a;
+    --strive-accent-icon: #facc15;
+    --strive-accent-contrast: #181006;
+    --strive-accent-soft: rgba(245, 197, 66, 0.14);
+    --strive-accent-softer: rgba(245, 197, 66, 0.08);
+    --strive-accent-border: rgba(250, 204, 21, 0.34);
+    --strive-accent-glow: rgba(245, 197, 66, 0.16);
+    --strive-success: #22c55e;
+    --strive-warning: #f59e0b;
+    --strive-danger: #f87171;
+    --strive-card-glaze: rgba(255, 251, 235, 0.032);
+    --strive-card-glaze-soft: rgba(255, 251, 235, 0.01);
+    --strive-focus-ring: rgba(250, 204, 21, 0.72);
+    --strive-workout-top: #080706;
+    --strive-bodymap-panel-bg: rgba(27, 24, 18, 0.74);
+    --strive-bodymap-panel-border: rgba(245, 197, 66, 0.22);
+    --strive-bodymap-muscle-fill: #2d281f;
+    --strive-bodymap-structure-fill: #393226;
+    --strive-bodymap-hair-fill: #493f2d;
+    --strive-bodymap-endpoint-fill: #312b22;
+    --strive-bodymap-stroke: #aa9564;
+    --strive-bodymap-soft-stroke: #625640;
+    --strive-bodymap-outline: rgba(245, 197, 66, 0.48);
+    --strive-bodymap-selected-fill: var(--strive-accent);
+    --strive-bodymap-selected-stroke: #fef3c7;
+    --strive-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+    --strive-shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.28);
+  }
+
+  :root[data-theme='forest'] {
+    --strive-bg: #03100b;
+    --strive-bg-soft: #06150f;
+    --strive-surface: #101a15;
+    --strive-surface-raised: #14221b;
+    --strive-surface-hover: #1b3025;
+    --strive-row: rgba(20, 34, 27, 0.9);
+    --strive-input-bg: rgba(5, 16, 11, 0.94);
+    --strive-hover: rgba(52, 211, 153, 0.045);
+    --strive-nav-bg: rgba(3, 16, 11, 0.9);
+    --strive-header-bg: rgba(3, 16, 11, 0.9);
+    --strive-border: rgba(52, 211, 153, 0.12);
+    --strive-border-strong: rgba(52, 211, 153, 0.22);
+    --strive-text: #f1fbf6;
+    --strive-muted: #9fb7ab;
+    --strive-subtle: #5f7569;
+    --strive-accent: #34d399;
+    --strive-accent-strong: #059669;
+    --strive-accent-text: #bbf7d0;
+    --strive-accent-icon: #6ee7b7;
+    --strive-accent-contrast: #02130c;
+    --strive-accent-soft: rgba(52, 211, 153, 0.12);
+    --strive-accent-softer: rgba(52, 211, 153, 0.07);
+    --strive-accent-border: rgba(110, 231, 183, 0.28);
+    --strive-accent-glow: rgba(52, 211, 153, 0.14);
+    --strive-success: #22c55e;
+    --strive-warning: #eab308;
+    --strive-danger: #f87171;
+    --strive-card-glaze: rgba(236, 253, 245, 0.028);
+    --strive-card-glaze-soft: rgba(236, 253, 245, 0.008);
+    --strive-focus-ring: rgba(110, 231, 183, 0.72);
+    --strive-workout-top: #06120d;
+    --strive-bodymap-panel-bg: rgba(11, 30, 21, 0.72);
+    --strive-bodymap-panel-border: rgba(110, 231, 183, 0.2);
+    --strive-bodymap-muscle-fill: #1f3028;
+    --strive-bodymap-structure-fill: #2a3e34;
+    --strive-bodymap-hair-fill: #344f41;
+    --strive-bodymap-endpoint-fill: #23362d;
+    --strive-bodymap-stroke: #79a891;
+    --strive-bodymap-soft-stroke: #4b6658;
+    --strive-bodymap-outline: rgba(110, 231, 183, 0.45);
+    --strive-bodymap-selected-fill: var(--strive-accent);
+    --strive-bodymap-selected-stroke: #d1fae5;
+    --strive-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
+    --strive-shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.25);
+  }
+
+  :root[data-theme='arctic'] {
+    color-scheme: light;
+    --background: #eef3f8;
+    --foreground: #111827;
+    --card: #ffffff;
+    --card-foreground: #111827;
+    --popover: #ffffff;
+    --popover-foreground: #111827;
+    --primary: #2563eb;
+    --primary-foreground: #ffffff;
+    --secondary: #e7edf5;
+    --secondary-foreground: #111827;
+    --muted: #e7edf5;
+    --muted-foreground: #5b677a;
+    --accent: #dbeafe;
+    --accent-foreground: #1d4ed8;
+    --border: rgba(15, 23, 42, 0.13);
+    --input: rgba(15, 23, 42, 0.13);
+    --ring: rgba(37, 99, 235, 0.45);
+    --strive-bg: #eef3f8;
+    --strive-bg-soft: #f8fbff;
+    --strive-surface: #ffffff;
+    --strive-surface-raised: #f7fafc;
+    --strive-surface-hover: #e9f0f8;
+    --strive-row: rgba(255, 255, 255, 0.9);
+    --strive-input-bg: rgba(255, 255, 255, 0.94);
+    --strive-hover: rgba(37, 99, 235, 0.06);
+    --strive-nav-bg: rgba(255, 255, 255, 0.9);
+    --strive-header-bg: rgba(255, 255, 255, 0.9);
+    --strive-border: rgba(15, 23, 42, 0.12);
+    --strive-border-strong: rgba(15, 23, 42, 0.2);
+    --strive-text: #111827;
+    --strive-muted: #5b677a;
+    --strive-subtle: #8a95a6;
+    --strive-accent: #2563eb;
+    --strive-accent-strong: #1d4ed8;
+    --strive-accent-text: #1d4ed8;
+    --strive-accent-icon: #2563eb;
+    --strive-accent-contrast: #ffffff;
+    --strive-accent-soft: rgba(37, 99, 235, 0.1);
+    --strive-accent-softer: rgba(37, 99, 235, 0.055);
+    --strive-accent-border: rgba(37, 99, 235, 0.24);
+    --strive-accent-glow: rgba(37, 99, 235, 0.14);
+    --strive-success: #16a34a;
+    --strive-warning: #d97706;
+    --strive-danger: #dc2626;
+    --strive-card-glaze: rgba(255, 255, 255, 0.82);
+    --strive-card-glaze-soft: rgba(226, 232, 240, 0.34);
+    --strive-focus-ring: rgba(37, 99, 235, 0.6);
+    --strive-workout-top: #f8fbff;
+    --strive-bodymap-panel-bg: #dbe4ef;
+    --strive-bodymap-panel-border: rgba(30, 64, 175, 0.18);
+    --strive-bodymap-muscle-fill: #c3cfdd;
+    --strive-bodymap-structure-fill: #aebccd;
+    --strive-bodymap-hair-fill: #8fa0b4;
+    --strive-bodymap-endpoint-fill: #b8c5d5;
+    --strive-bodymap-stroke: #334155;
+    --strive-bodymap-soft-stroke: #7b8da4;
+    --strive-bodymap-outline: rgba(51, 65, 85, 0.72);
+    --strive-bodymap-selected-fill: var(--strive-accent);
+    --strive-bodymap-selected-stroke: #1e3a8a;
+    --strive-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+    --strive-shadow-soft: 0 10px 28px rgba(15, 23, 42, 0.09);
+  }
+
+  :root[data-theme='chalk'] {
+    color-scheme: light;
+    --background: #f4f7f6;
+    --foreground: #111a18;
+    --card: #ffffff;
+    --card-foreground: #111a18;
+    --popover: #ffffff;
+    --popover-foreground: #111a18;
+    --primary: #0f766e;
+    --primary-foreground: #ffffff;
+    --secondary: #e7efed;
+    --secondary-foreground: #111a18;
+    --muted: #e7efed;
+    --muted-foreground: #5e6f6b;
+    --accent: #ccfbf1;
+    --accent-foreground: #115e59;
+    --border: rgba(17, 26, 24, 0.12);
+    --input: rgba(17, 26, 24, 0.13);
+    --ring: rgba(15, 118, 110, 0.45);
+    --strive-bg: #f4f7f6;
+    --strive-bg-soft: #fbfdfd;
+    --strive-surface: #ffffff;
+    --strive-surface-raised: #f7faf9;
+    --strive-surface-hover: #e8f1ef;
+    --strive-row: rgba(255, 255, 255, 0.9);
+    --strive-input-bg: rgba(255, 255, 255, 0.94);
+    --strive-hover: rgba(15, 118, 110, 0.06);
+    --strive-nav-bg: rgba(255, 255, 255, 0.9);
+    --strive-header-bg: rgba(255, 255, 255, 0.9);
+    --strive-border: rgba(17, 26, 24, 0.12);
+    --strive-border-strong: rgba(17, 26, 24, 0.2);
+    --strive-text: #111a18;
+    --strive-muted: #5e6f6b;
+    --strive-subtle: #899792;
+    --strive-accent: #0f766e;
+    --strive-accent-strong: #115e59;
+    --strive-accent-text: #0f766e;
+    --strive-accent-icon: #0f766e;
+    --strive-accent-contrast: #ffffff;
+    --strive-accent-soft: rgba(15, 118, 110, 0.1);
+    --strive-accent-softer: rgba(15, 118, 110, 0.055);
+    --strive-accent-border: rgba(15, 118, 110, 0.24);
+    --strive-accent-glow: rgba(15, 118, 110, 0.12);
+    --strive-success: #16a34a;
+    --strive-warning: #ca8a04;
+    --strive-danger: #dc2626;
+    --strive-card-glaze: rgba(255, 255, 255, 0.82);
+    --strive-card-glaze-soft: rgba(229, 231, 235, 0.3);
+    --strive-focus-ring: rgba(15, 118, 110, 0.58);
+    --strive-workout-top: #fbfdfd;
+    --strive-bodymap-panel-bg: #dfe8e5;
+    --strive-bodymap-panel-border: rgba(15, 118, 110, 0.18);
+    --strive-bodymap-muscle-fill: #c8d6d1;
+    --strive-bodymap-structure-fill: #b4c4bf;
+    --strive-bodymap-hair-fill: #91a5a0;
+    --strive-bodymap-endpoint-fill: #bdccc7;
+    --strive-bodymap-stroke: #2f4f4a;
+    --strive-bodymap-soft-stroke: #77908a;
+    --strive-bodymap-outline: rgba(47, 79, 74, 0.72);
+    --strive-bodymap-selected-fill: var(--strive-accent);
+    --strive-bodymap-selected-stroke: #064e3b;
+    --strive-shadow: 0 18px 42px rgba(17, 26, 24, 0.11);
+    --strive-shadow-soft: 0 10px 28px rgba(17, 26, 24, 0.08);
+  }
+
   body {
     background:
-      radial-gradient(circle at 50% -10%, rgba(59, 130, 246, 0.1), transparent 34rem),
+      radial-gradient(circle at 50% -10%, var(--strive-accent-glow), transparent 34rem),
       linear-gradient(180deg, var(--strive-bg-soft), var(--strive-bg));
     color: var(--strive-text);
   }
@@ -227,7 +620,7 @@
   input:focus-visible,
   textarea:focus-visible,
   select:focus-visible {
-    outline: 2px solid rgba(96, 165, 250, 0.85);
+    outline: 2px solid var(--strive-focus-ring);
     outline-offset: 2px;
   }
 }
@@ -236,9 +629,13 @@
   .strive-app {
     min-height: 100vh;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 18rem),
+      linear-gradient(180deg, var(--strive-card-glaze), transparent 18rem),
       var(--strive-bg);
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), var(--strive-shadow);
+  }
+
+  .app-runtime-shell {
+    background: var(--strive-bg);
   }
 
   .screen-shell {
@@ -248,10 +645,14 @@
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
   }
 
+  .has-minimized-workout-bar .screen-shell {
+    padding-bottom: calc(9.6rem + env(safe-area-inset-bottom));
+  }
+
   .screen-header {
     padding: 1.5rem 1rem 1rem;
     border-bottom: 1px solid var(--strive-border);
-    background: linear-gradient(180deg, rgba(21, 24, 32, 0.72), rgba(6, 7, 10, 0));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--strive-surface-raised) 72%, transparent), transparent);
   }
 
   .sticky-header {
@@ -259,7 +660,7 @@
     top: 0;
     z-index: 20;
     border-bottom: 1px solid var(--strive-border);
-    background: rgba(6, 7, 10, 0.88);
+    background: var(--strive-header-bg);
     backdrop-filter: blur(18px);
   }
 
@@ -276,7 +677,7 @@
     border: 1px solid var(--strive-border);
     border-radius: var(--strive-radius);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.012)),
+      linear-gradient(180deg, var(--strive-card-glaze), var(--strive-card-glaze-soft)),
       var(--strive-surface);
     box-shadow: var(--strive-shadow-soft);
   }
@@ -292,7 +693,7 @@
     min-width: 0;
     border: 1px solid var(--strive-border);
     border-radius: var(--strive-radius-sm);
-    background: rgba(21, 24, 32, 0.82);
+    background: var(--strive-row);
   }
 
   .premium-button {
@@ -307,14 +708,14 @@
   }
 
   .premium-button-primary {
-    border: 1px solid rgba(96, 165, 250, 0.42);
-    background: linear-gradient(180deg, #3b82f6, #2563eb);
-    color: white;
-    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24);
+    border: 1px solid var(--strive-accent-border);
+    background: linear-gradient(180deg, var(--strive-accent), var(--strive-accent-strong));
+    color: var(--strive-accent-contrast);
+    box-shadow: 0 12px 28px var(--strive-accent-glow);
   }
 
   .premium-button-primary:hover {
-    background: linear-gradient(180deg, #4b8df8, #2f6fed);
+    filter: brightness(1.07);
   }
 
   .premium-button-secondary {
@@ -348,19 +749,19 @@
   .premium-input {
     border: 1px solid var(--strive-border);
     border-radius: var(--strive-radius-sm);
-    background: rgba(10, 12, 17, 0.92);
+    background: var(--strive-input-bg);
     color: var(--strive-text);
   }
 
   .premium-input::placeholder {
-    color: #647084;
+    color: var(--strive-subtle);
   }
 
   .premium-badge {
     min-width: 0;
     border: 1px solid var(--strive-border);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.045);
+    background: var(--strive-hover);
     color: var(--strive-muted);
   }
 
@@ -374,7 +775,7 @@
   .workout-field {
     border: 1px solid rgba(148, 163, 184, 0.12);
     border-radius: 9px;
-    background: rgba(10, 12, 17, 0.9);
+    background: var(--strive-input-bg);
     color: var(--strive-text);
     font-variant-numeric: tabular-nums;
   }
@@ -390,10 +791,26 @@
     outline: none;
   }
 
+  .body-map-panel {
+    border: 1px solid var(--strive-bodymap-panel-border);
+    border-radius: var(--strive-radius);
+    background:
+      radial-gradient(circle at 50% 15%, var(--strive-accent-softer), transparent 10rem),
+      var(--strive-bodymap-panel-bg);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.045),
+      inset 0 0 0 1px color-mix(in srgb, var(--strive-bodymap-outline) 12%, transparent);
+  }
+
+  .body-map-side-label {
+    color: var(--strive-muted);
+    letter-spacing: 0.18em;
+  }
+
   .active-workout-shell {
     background:
-      radial-gradient(circle at 50% -8rem, rgba(59, 130, 246, 0.11), transparent 28rem),
-      linear-gradient(180deg, #080a0f 0%, var(--strive-bg) 22rem);
+      radial-gradient(circle at 50% -8rem, var(--strive-accent-glow), transparent 28rem),
+      linear-gradient(180deg, var(--strive-workout-top) 0%, var(--strive-bg) 22rem);
   }
 
   .active-workout-underlay {
@@ -444,13 +861,14 @@
     box-shadow:
       0 -22px 70px rgba(0, 0, 0, 0.62),
       0 -1px 0 rgba(255, 255, 255, 0.045);
+    background: var(--strive-bg);
   }
 
   .active-workout-topbar {
     overflow: hidden;
     background:
-      linear-gradient(180deg, rgba(15, 18, 26, 0.96), rgba(8, 10, 15, 0.9)),
-      rgba(6, 7, 10, 0.92);
+      linear-gradient(180deg, color-mix(in srgb, var(--strive-surface-raised) 96%, transparent), color-mix(in srgb, var(--strive-workout-top) 90%, transparent)),
+      var(--strive-header-bg);
     touch-action: none;
     cursor: grab;
   }
@@ -470,11 +888,11 @@
     width: 3rem;
     border-radius: 999px;
     background: rgba(226, 232, 240, 0.28);
-    box-shadow: 0 0 18px rgba(96, 165, 250, 0.12);
+    box-shadow: 0 0 18px var(--strive-accent-glow);
   }
 
   .active-workout-drag-handle:active span {
-    background: rgba(147, 197, 253, 0.58);
+    background: var(--strive-accent-icon);
   }
 
   .persistent-workout-drag-preview {
@@ -483,8 +901,8 @@
 
   .persistent-workout-minimized-header {
     background:
-      linear-gradient(180deg, rgba(18, 22, 31, 0.98), rgba(8, 10, 15, 0.96)),
-      #0a0d13;
+      linear-gradient(180deg, color-mix(in srgb, var(--strive-surface-raised) 98%, transparent), color-mix(in srgb, var(--strive-workout-top) 96%, transparent)),
+      var(--strive-bg-soft);
     box-shadow:
       0 -18px 48px rgba(0, 0, 0, 0.48),
       inset 0 1px 0 rgba(255, 255, 255, 0.045);
@@ -502,14 +920,14 @@
   .active-exercise-card {
     border-color: rgba(148, 163, 184, 0.18);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.012)),
-      #10131a;
+      linear-gradient(180deg, var(--strive-card-glaze), var(--strive-card-glaze-soft)),
+      var(--strive-surface);
   }
 
   .active-exercise-header {
     border-bottom: 1px solid rgba(148, 163, 184, 0.13);
     background:
-      linear-gradient(180deg, rgba(59, 130, 246, 0.08), transparent 72%),
+      linear-gradient(180deg, var(--strive-accent-softer), transparent 72%),
       rgba(255, 255, 255, 0.012);
   }
 
@@ -545,17 +963,423 @@
   }
 
   .reorder-drag-preview {
-    border-color: rgba(96, 165, 250, 0.42);
+    border-color: var(--strive-accent-border);
     background:
-      linear-gradient(180deg, rgba(59, 130, 246, 0.16), rgba(255, 255, 255, 0.045)),
-      #151922;
+      linear-gradient(180deg, var(--strive-accent-soft), var(--strive-hover)),
+      var(--strive-surface-raised);
     box-shadow:
       0 1.5rem 3rem rgba(0, 0, 0, 0.46),
-      0 0 0 1px rgba(96, 165, 250, 0.16),
-      0 0 2rem rgba(59, 130, 246, 0.18);
+      0 0 0 1px var(--strive-accent-border),
+      0 0 2rem var(--strive-accent-glow);
     opacity: 0.9;
     transform: rotate(-0.7deg) scale(1.015);
     will-change: transform, left, top;
+  }
+
+  .bottom-nav {
+    border-color: var(--strive-border);
+    background: var(--strive-nav-bg);
+    box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.28);
+  }
+
+  .bottom-nav-icon-active {
+    background: var(--strive-accent-soft);
+    color: var(--strive-accent-icon);
+  }
+
+  .bottom-nav-active-pill {
+    background: var(--strive-accent-icon);
+    box-shadow: 0 0 18px var(--strive-accent-glow);
+  }
+
+  .theme-option {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--strive-border);
+    border-radius: var(--strive-radius);
+    background:
+      linear-gradient(180deg, var(--strive-card-glaze), var(--strive-card-glaze-soft)),
+      var(--strive-surface);
+    color: var(--strive-text);
+    text-align: left;
+    transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .theme-option:hover {
+    border-color: var(--strive-border-strong);
+    background:
+      linear-gradient(180deg, var(--strive-hover), transparent),
+      var(--strive-surface-raised);
+  }
+
+  .theme-option-selected {
+    border-color: var(--strive-accent-border);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--strive-accent-border) 56%, transparent),
+      0 16px 34px rgba(0, 0, 0, 0.24),
+      0 0 28px var(--strive-accent-glow);
+  }
+
+  .theme-option-selected::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 18% 0%, var(--strive-accent-soft), transparent 14rem);
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
+  .theme-preview {
+    border: 1px solid var(--strive-border);
+    border-radius: 0.9rem;
+    background:
+      linear-gradient(135deg, var(--theme-preview-surface), transparent 68%),
+      var(--theme-preview-bg);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .theme-preview-accent {
+    background: linear-gradient(180deg, var(--theme-preview-accent), var(--theme-preview-accent-strong));
+    box-shadow: 0 0 18px color-mix(in srgb, var(--theme-preview-accent) 42%, transparent);
+  }
+
+  .theme-selected-dot {
+    background: var(--strive-accent);
+    box-shadow: 0 0 14px var(--strive-accent-glow);
+  }
+
+  .rank-badge {
+    border-color: var(--rank-badge-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(0, 0, 0, 0.08)),
+      var(--rank-badge-bg);
+    color: var(--rank-badge-text);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--rank-badge-border) 24%, transparent),
+      0 0 1.4rem var(--rank-badge-glow);
+  }
+
+  .rank-badge svg,
+  .rank-badge span {
+    color: inherit;
+  }
+
+  .rank-badge-unranked {
+    --rank-badge-bg: color-mix(in srgb, var(--strive-surface-raised) 86%, #111827 14%);
+    --rank-badge-border: color-mix(in srgb, var(--strive-border-strong) 76%, #64748b 24%);
+    --rank-badge-text: var(--strive-muted);
+    --rank-badge-glow: rgba(15, 23, 42, 0.12);
+  }
+
+  .rank-badge-iron {
+    --rank-badge-bg: #202833;
+    --rank-badge-border: #94a3b8;
+    --rank-badge-text: #f1f5f9;
+    --rank-badge-glow: rgba(148, 163, 184, 0.18);
+  }
+
+  .rank-badge-bronze {
+    --rank-badge-bg: #431407;
+    --rank-badge-border: #fb923c;
+    --rank-badge-text: #fed7aa;
+    --rank-badge-glow: rgba(251, 146, 60, 0.22);
+  }
+
+  .rank-badge-silver {
+    --rank-badge-bg: #334155;
+    --rank-badge-border: #cbd5e1;
+    --rank-badge-text: #f8fafc;
+    --rank-badge-glow: rgba(203, 213, 225, 0.22);
+  }
+
+  .rank-badge-gold {
+    --rank-badge-bg: #422006;
+    --rank-badge-border: #facc15;
+    --rank-badge-text: #fef08a;
+    --rank-badge-glow: rgba(250, 204, 21, 0.24);
+  }
+
+  .rank-badge-platinum {
+    --rank-badge-bg: #083344;
+    --rank-badge-border: #67e8f9;
+    --rank-badge-text: #cffafe;
+    --rank-badge-glow: rgba(103, 232, 249, 0.24);
+  }
+
+  .rank-badge-diamond {
+    --rank-badge-bg: #082f49;
+    --rank-badge-border: #7dd3fc;
+    --rank-badge-text: #e0f2fe;
+    --rank-badge-glow: rgba(125, 211, 252, 0.26);
+  }
+
+  .rank-badge-ascendant {
+    --rank-badge-bg: #3b0764;
+    --rank-badge-border: #c084fc;
+    --rank-badge-text: #f3e8ff;
+    --rank-badge-glow: rgba(192, 132, 252, 0.26);
+  }
+
+  .rank-badge-titan {
+    --rank-badge-bg: #450a0a;
+    --rank-badge-border: #f87171;
+    --rank-badge-text: #fee2e2;
+    --rank-badge-glow: rgba(248, 113, 113, 0.26);
+  }
+
+  .rank-badge-apex {
+    --rank-badge-bg: #111827;
+    --rank-badge-border: #fde68a;
+    --rank-badge-text: #fffbeb;
+    --rank-badge-glow: rgba(253, 230, 138, 0.3);
+  }
+
+  :root[data-theme] [class~='text-blue-100'],
+  :root[data-theme] [class~='text-blue-200'],
+  :root[data-theme] [class~='text-blue-300'],
+  :root[data-theme] [class~='text-blue-400'],
+  :root[data-theme] [class~='hover:text-blue-300']:hover,
+  :root[data-theme] [class~='hover:text-blue-400']:hover {
+    color: var(--strive-accent-icon) !important;
+  }
+
+  :root[data-theme] [class~='bg-blue-400'],
+  :root[data-theme] [class~='bg-blue-500'] {
+    background-color: var(--strive-accent) !important;
+  }
+
+  :root[data-theme] [class~='bg-blue-400/20'],
+  :root[data-theme] [class~='bg-blue-500/10'],
+  :root[data-theme] [class~='bg-blue-500/12'],
+  :root[data-theme] [class~='bg-blue-500/15'],
+  :root[data-theme] [class~='bg-blue-500/20'],
+  :root[data-theme] [class~='bg-blue-500/25'],
+  :root[data-theme] [class~='bg-blue-500/30'],
+  :root[data-theme] [class~='bg-blue-500/[0.07]'],
+  :root[data-theme] [class~='hover:bg-blue-500/20']:hover,
+  :root[data-theme] [class~='hover:bg-blue-500/22']:hover {
+    background-color: var(--strive-accent-soft) !important;
+  }
+
+  :root[data-theme] [class~='border-blue-300'],
+  :root[data-theme] [class~='border-blue-300/20'],
+  :root[data-theme] [class~='border-blue-300/25'],
+  :root[data-theme] [class~='border-blue-300/35'],
+  :root[data-theme] [class~='border-blue-300/40'],
+  :root[data-theme] [class~='border-blue-300/45'],
+  :root[data-theme] [class~='border-blue-300/70'],
+  :root[data-theme] [class~='border-blue-400/15'],
+  :root[data-theme] [class~='border-blue-400/20'],
+  :root[data-theme] [class~='border-blue-400/25'],
+  :root[data-theme] [class~='border-blue-400/30'],
+  :root[data-theme] [class~='border-blue-400/35'],
+  :root[data-theme] [class~='border-blue-400/40'],
+  :root[data-theme] [class~='border-blue-500/30'],
+  :root[data-theme] [class~='hover:border-blue-300/60']:hover,
+  :root[data-theme] [class~='hover:border-blue-400/30']:hover {
+    border-color: var(--strive-accent-border) !important;
+  }
+
+  :root[data-theme] [class~='ring-blue-300/40'],
+  :root[data-theme] [class~='ring-blue-400/35'] {
+    --tw-ring-color: var(--strive-accent-border) !important;
+  }
+
+  :root[data-theme] [class~='from-blue-500/[0.07]'] {
+    --tw-gradient-from: var(--strive-accent-softer) var(--tw-gradient-from-position) !important;
+    --tw-gradient-to: transparent var(--tw-gradient-to-position) !important;
+  }
+
+  :root[data-theme] [class~='from-blue-500'],
+  :root[data-theme] [class~='via-cyan-300'] {
+    --tw-gradient-from: var(--strive-accent) var(--tw-gradient-from-position) !important;
+    --tw-gradient-via: var(--strive-accent-icon) var(--tw-gradient-via-position) !important;
+  }
+
+  :root[data-theme='arctic'] .stat-number,
+  :root[data-theme='chalk'] .stat-number,
+  :root[data-theme='arctic'] [class~='text-white'],
+  :root[data-theme='chalk'] [class~='text-white'],
+  :root[data-theme='arctic'] [class~='text-zinc-50'],
+  :root[data-theme='chalk'] [class~='text-zinc-50'],
+  :root[data-theme='arctic'] [class~='text-zinc-100'],
+  :root[data-theme='chalk'] [class~='text-zinc-100'],
+  :root[data-theme='arctic'] [class~='text-zinc-200'],
+  :root[data-theme='chalk'] [class~='text-zinc-200'] {
+    color: var(--strive-text) !important;
+  }
+
+  :root[data-theme='arctic'] [class~='text-zinc-300'],
+  :root[data-theme='chalk'] [class~='text-zinc-300'],
+  :root[data-theme='arctic'] [class~='text-zinc-400'],
+  :root[data-theme='chalk'] [class~='text-zinc-400'] {
+    color: var(--strive-muted) !important;
+  }
+
+  :root[data-theme='arctic'] [class~='text-zinc-500'],
+  :root[data-theme='chalk'] [class~='text-zinc-500'],
+  :root[data-theme='arctic'] [class~='text-zinc-600'],
+  :root[data-theme='chalk'] [class~='text-zinc-600'],
+  :root[data-theme='arctic'] [class~='text-zinc-700'],
+  :root[data-theme='chalk'] [class~='text-zinc-700'] {
+    color: var(--strive-subtle) !important;
+  }
+
+  :root[data-theme='arctic'] [class~='bg-zinc-950'],
+  :root[data-theme='chalk'] [class~='bg-zinc-950'],
+  :root[data-theme='arctic'] [class~='bg-zinc-950/95'],
+  :root[data-theme='chalk'] [class~='bg-zinc-950/95'],
+  :root[data-theme='arctic'] [class~='bg-zinc-950/88'],
+  :root[data-theme='chalk'] [class~='bg-zinc-950/88'] {
+    background-color: var(--strive-bg) !important;
+  }
+
+  :root[data-theme='arctic'] [class~='bg-zinc-900'],
+  :root[data-theme='chalk'] [class~='bg-zinc-900'],
+  :root[data-theme='arctic'] [class~='bg-zinc-900/80'],
+  :root[data-theme='chalk'] [class~='bg-zinc-900/80'],
+  :root[data-theme='arctic'] [class~='bg-zinc-800'],
+  :root[data-theme='chalk'] [class~='bg-zinc-800'],
+  :root[data-theme='arctic'] [class~='bg-zinc-800/80'],
+  :root[data-theme='chalk'] [class~='bg-zinc-800/80'] {
+    background-color: var(--strive-surface-raised) !important;
+  }
+
+  :root[data-theme='arctic'] [class~='bg-white/10'],
+  :root[data-theme='chalk'] [class~='bg-white/10'],
+  :root[data-theme='arctic'] [class~='bg-white/18'],
+  :root[data-theme='chalk'] [class~='bg-white/18'],
+  :root[data-theme='arctic'] [class~='bg-white/[0.02]'],
+  :root[data-theme='chalk'] [class~='bg-white/[0.02]'],
+  :root[data-theme='arctic'] [class~='bg-white/[0.025]'],
+  :root[data-theme='chalk'] [class~='bg-white/[0.025]'],
+  :root[data-theme='arctic'] [class~='bg-white/[0.03]'],
+  :root[data-theme='chalk'] [class~='bg-white/[0.03]'],
+  :root[data-theme='arctic'] [class~='bg-white/[0.035]'],
+  :root[data-theme='chalk'] [class~='bg-white/[0.035]'],
+  :root[data-theme='arctic'] [class~='bg-white/[0.04]'],
+  :root[data-theme='chalk'] [class~='bg-white/[0.04]'],
+  :root[data-theme='arctic'] [class~='bg-white/[0.045]'],
+  :root[data-theme='chalk'] [class~='bg-white/[0.045]'],
+  :root[data-theme='arctic'] [class~='bg-white/[0.06]'],
+  :root[data-theme='chalk'] [class~='bg-white/[0.06]'],
+  :root[data-theme='arctic'] [class~='hover:bg-white/[0.035]']:hover,
+  :root[data-theme='chalk'] [class~='hover:bg-white/[0.035]']:hover,
+  :root[data-theme='arctic'] [class~='hover:bg-white/[0.04]']:hover,
+  :root[data-theme='chalk'] [class~='hover:bg-white/[0.04]']:hover,
+  :root[data-theme='arctic'] [class~='hover:bg-white/[0.06]']:hover,
+  :root[data-theme='chalk'] [class~='hover:bg-white/[0.06]']:hover {
+    background-color: color-mix(in srgb, var(--strive-text) 5%, transparent) !important;
+  }
+
+  :root[data-theme='arctic'] [class~='border-white/5'],
+  :root[data-theme='chalk'] [class~='border-white/5'],
+  :root[data-theme='arctic'] [class~='border-white/10'],
+  :root[data-theme='chalk'] [class~='border-white/10'],
+  :root[data-theme='arctic'] [class~='border-white/15'],
+  :root[data-theme='chalk'] [class~='border-white/15'],
+  :root[data-theme='arctic'] [class~='border-white/20'],
+  :root[data-theme='chalk'] [class~='border-white/20'] {
+    border-color: var(--strive-border) !important;
+  }
+
+  :root[data-theme='arctic'] [class~='from-zinc-950'],
+  :root[data-theme='chalk'] [class~='from-zinc-950'],
+  :root[data-theme='arctic'] [class~='to-zinc-950'],
+  :root[data-theme='chalk'] [class~='to-zinc-950'] {
+    --tw-gradient-from: var(--strive-surface) var(--tw-gradient-from-position) !important;
+    --tw-gradient-to: var(--strive-bg) var(--tw-gradient-to-position) !important;
+  }
+
+  :root[data-theme='arctic'] .premium-button-primary,
+  :root[data-theme='chalk'] .premium-button-primary,
+  :root[data-theme='arctic'] .premium-button-success,
+  :root[data-theme='chalk'] .premium-button-success,
+  :root[data-theme='arctic'] .premium-button-primary *,
+  :root[data-theme='chalk'] .premium-button-primary *,
+  :root[data-theme='arctic'] .premium-button-success *,
+  :root[data-theme='chalk'] .premium-button-success * {
+    color: var(--strive-accent-contrast) !important;
+  }
+
+  :root[data-theme='arctic'] .premium-button-danger,
+  :root[data-theme='chalk'] .premium-button-danger,
+  :root[data-theme='arctic'] .premium-button-danger *,
+  :root[data-theme='chalk'] .premium-button-danger * {
+    color: #b91c1c !important;
+  }
+
+  :root[data-theme='arctic'] .active-workout-stat,
+  :root[data-theme='chalk'] .active-workout-stat,
+  :root[data-theme='arctic'] .active-workout-field,
+  :root[data-theme='chalk'] .active-workout-field {
+    border-color: var(--strive-border);
+    background: color-mix(in srgb, var(--strive-surface) 86%, var(--strive-text) 4%);
+  }
+
+  :root[data-theme='arctic'] .active-set-row,
+  :root[data-theme='chalk'] .active-set-row {
+    border-color: var(--strive-border);
+    background: color-mix(in srgb, var(--strive-surface) 88%, var(--strive-text) 3%);
+  }
+
+  :root[data-theme='arctic'] .active-set-row-complete,
+  :root[data-theme='chalk'] .active-set-row-complete {
+    border-color: rgba(22, 163, 74, 0.22);
+    background: linear-gradient(90deg, rgba(22, 163, 74, 0.13), color-mix(in srgb, var(--strive-surface) 88%, var(--strive-text) 3%) 52%);
+  }
+
+  :root[data-theme='arctic'] .empty-state,
+  :root[data-theme='chalk'] .empty-state {
+    background: color-mix(in srgb, var(--strive-surface) 82%, var(--strive-text) 3%);
+  }
+
+  :root[data-theme='arctic'] .dialog-premium,
+  :root[data-theme='chalk'] .dialog-premium {
+    background:
+      linear-gradient(180deg, var(--strive-card-glaze), var(--strive-card-glaze-soft)),
+      var(--strive-surface);
+  }
+
+  :root[data-theme='arctic'] .rank-celebration [class~='text-white'],
+  :root[data-theme='chalk'] .rank-celebration [class~='text-white'],
+  :root[data-theme='arctic'] .rank-celebration [class~='text-zinc-50'],
+  :root[data-theme='chalk'] .rank-celebration [class~='text-zinc-50'],
+  :root[data-theme='arctic'] .rank-celebration [class~='text-zinc-100'],
+  :root[data-theme='chalk'] .rank-celebration [class~='text-zinc-100'],
+  :root[data-theme='arctic'] .rank-celebration [class~='text-zinc-200'],
+  :root[data-theme='chalk'] .rank-celebration [class~='text-zinc-200'] {
+    color: #f8fafc !important;
+  }
+
+  :root[data-theme='arctic'] .rank-celebration [class~='text-zinc-300'],
+  :root[data-theme='chalk'] .rank-celebration [class~='text-zinc-300'],
+  :root[data-theme='arctic'] .rank-celebration [class~='text-zinc-400'],
+  :root[data-theme='chalk'] .rank-celebration [class~='text-zinc-400'] {
+    color: #a1a1aa !important;
+  }
+
+  :root[data-theme='arctic'] .rank-celebration [class~='text-zinc-500'],
+  :root[data-theme='chalk'] .rank-celebration [class~='text-zinc-500'],
+  :root[data-theme='arctic'] .rank-celebration [class~='text-zinc-600'],
+  :root[data-theme='chalk'] .rank-celebration [class~='text-zinc-600'] {
+    color: #71717a !important;
+  }
+
+  :root[data-theme='arctic'] .rank-celebration [class~='bg-white/[0.035]'],
+  :root[data-theme='chalk'] .rank-celebration [class~='bg-white/[0.035]'],
+  :root[data-theme='arctic'] .rank-celebration [class~='bg-white/[0.04]'],
+  :root[data-theme='chalk'] .rank-celebration [class~='bg-white/[0.04]'],
+  :root[data-theme='arctic'] .rank-celebration [class~='bg-white/10'],
+  :root[data-theme='chalk'] .rank-celebration [class~='bg-white/10'] {
+    background-color: rgba(255, 255, 255, 0.045) !important;
+  }
+
+  :root[data-theme='arctic'] .rank-celebration [class~='border-white/10'],
+  :root[data-theme='chalk'] .rank-celebration [class~='border-white/10'],
+  :root[data-theme='arctic'] .rank-celebration [class~='border-white/15'],
+  :root[data-theme='chalk'] .rank-celebration [class~='border-white/15'] {
+    border-color: rgba(255, 255, 255, 0.1) !important;
   }
 
   .no-scrollbar {
@@ -594,10 +1418,10 @@
   }
 
   .rank-celebration {
-    --rank-accent: #60a5fa;
-    --rank-accent-soft: rgba(96, 165, 250, 0.2);
-    --rank-glow: rgba(96, 165, 250, 0.36);
-    --rank-text: #dbeafe;
+    --rank-accent: var(--strive-accent-icon);
+    --rank-accent-soft: var(--strive-accent-soft);
+    --rank-glow: var(--strive-accent-glow);
+    --rank-text: var(--strive-accent-text);
     isolation: isolate;
     max-width: 100vw;
     touch-action: pan-y;
@@ -617,7 +1441,7 @@
     z-index: -3;
     background:
       radial-gradient(circle at 28% 18%, var(--rank-glow), transparent 22rem),
-      radial-gradient(circle at 72% 22%, rgba(59, 130, 246, 0.24), transparent 20rem),
+      radial-gradient(circle at 72% 22%, var(--strive-accent-soft), transparent 20rem),
       radial-gradient(circle at 50% 82%, var(--rank-accent-soft), transparent 24rem),
       linear-gradient(180deg, #02040a 0%, #05070d 48%, #010207 100%);
     filter: saturate(1.2);
