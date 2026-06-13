@@ -25,7 +25,8 @@ import { useSettings } from '../contexts/SettingsContext';
 import { DataService } from '../services/db';
 import { schedulePostWorkoutReminders } from '../services/notifications';
 import { getWorkoutRankProgressItems } from '../features/exercise-ranks';
-import { getWorkoutLiftedLoadVolume } from '../utils/workoutVolume';
+import { getExerciseLiftedLoadVolume, getWorkoutLiftedLoadVolume } from '../utils/workoutVolume';
+import { triggerHaptic } from '../utils/haptics';
 
 export function FinishWorkoutPage() {
   const navigate = useNavigate();
@@ -215,6 +216,7 @@ export function FinishWorkoutPage() {
             workoutsWithCompletedWorkout: [savedWorkout, ...previousWorkouts],
             completedWorkoutId: savedWorkout.id,
             fallbackBodyweightKg: user.weight,
+            userGender: user.gender,
           })
         : [];
 
@@ -230,6 +232,7 @@ export function FinishWorkoutPage() {
       rankProgress,
     };
 
+    triggerHaptic('heavy', { force: true });
     setPendingSummaryData(summaryData);
     if (routineId) {
       setPendingRoutineUpdate({
@@ -334,6 +337,9 @@ export function FinishWorkoutPage() {
             {workoutExercises.map((exercise) => {
               const exerciseData = exercises.find((item) => item.id === exercise.exerciseId);
               const completedCount = exercise.sets.filter((set) => set.completed).length;
+              const logging = getExerciseLogging(exerciseData);
+              const hasLoadVolume = logging.fields.some((field) => field.key === 'weight') && logging.fields.some((field) => field.key === 'reps');
+              const exerciseVolume = getExerciseLiftedLoadVolume(exercise);
 
               return (
                 <div key={exercise.exerciseId} className="premium-row p-3 flex items-center gap-3">
@@ -342,6 +348,7 @@ export function FinishWorkoutPage() {
                     <div className="text-white text-sm font-medium mb-1">{exercise.exerciseName}</div>
                     <div className="text-xs text-zinc-400">
                       {completedCount} / {exercise.sets.length} sets completed
+                      {hasLoadVolume ? ` - ${Math.round(exerciseVolume).toLocaleString()} kg` : ` - ${logging.label}`}
                     </div>
                   </div>
                 </div>

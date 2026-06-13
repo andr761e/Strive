@@ -351,8 +351,8 @@ export function BottomInputPanel({
 
   if (!isOpen) return null;
 
-  const workoutKeyHeightClass = 'h-[clamp(2rem,5dvh,2.4rem)]';
-  const workoutFooterButtonHeightClass = 'h-[clamp(2.25rem,5.5dvh,2.75rem)]';
+  const workoutKeyHeightClass = 'bottom-input-workout-key';
+  const workoutFooterButtonHeightClass = 'bottom-input-workout-next';
 
   return (
     <>
@@ -368,16 +368,16 @@ export function BottomInputPanel({
       <div
         ref={panelRef}
         className={`bottom-input-panel fixed left-0 right-0 z-50 border-t backdrop-blur-xl animate-slide-up ${
-          isWorkoutVariant ? 'workout-input-panel-offset' : 'bottom-0'
+          isWorkoutVariant ? 'bottom-0 safe-area-bottom' : 'bottom-0'
         } ${
           isWorkoutVariant
             ? `bottom-input-panel-workout rounded-t-xl ${
-                isTimeMode ? '' : 'max-h-[38dvh] overflow-hidden'
+                isTimeMode ? 'bottom-input-panel-workout-time' : 'bottom-input-panel-workout-number'
               }`
             : 'rounded-t-2xl'
         }`}
       >
-        <div className={isWorkoutVariant ? 'mx-auto max-w-lg' : 'max-w-md mx-auto'}>
+        <div className={isWorkoutVariant ? 'bottom-input-panel-inner-workout mx-auto max-w-lg' : 'max-w-md mx-auto'}>
           {/* Header */}
           <div
             className={`bottom-input-header flex items-center justify-between border-b ${
@@ -487,9 +487,9 @@ export function BottomInputPanel({
               </div>
 
               {/* Number Pad */}
-              <div className={isWorkoutVariant ? 'px-3 py-2' : 'px-4 py-4'}>
+              <div className={isWorkoutVariant ? 'bottom-input-workout-pad px-3 py-1.5' : 'px-4 py-4'}>
                 {isWorkoutVariant && (
-                  <div className="mb-1.5 grid grid-cols-[1fr_1.35fr_1fr] gap-1.5">
+                  <div className="bottom-input-workout-step-row grid grid-cols-[1fr_1.35fr_1fr] gap-1.5">
                     <button
                       onClick={handleDecrement}
                       className={`premium-button premium-button-secondary bottom-input-key ${workoutKeyHeightClass} text-base active:scale-95`}
@@ -516,7 +516,7 @@ export function BottomInputPanel({
                     </button>
                   </div>
                 )}
-                <div className={`${isWorkoutVariant ? 'mb-1.5 gap-1.5' : 'mb-2 gap-2'} grid grid-cols-3`}>
+                <div className={`${isWorkoutVariant ? 'bottom-input-workout-digit-grid gap-1.5' : 'mb-2 gap-2'} grid grid-cols-3`}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                     <button
                       key={num}
@@ -529,7 +529,7 @@ export function BottomInputPanel({
                     </button>
                   ))}
                 </div>
-                <div className={`${isWorkoutVariant ? 'gap-1.5' : 'gap-2'} grid grid-cols-3`}>
+                <div className={`${isWorkoutVariant ? 'bottom-input-workout-bottom-row gap-1.5' : 'gap-2'} grid grid-cols-3`}>
                   <button
                     onClick={allowDecimal ? handleDecimalClick : handleClear}
                     disabled={allowDecimal && draftValue.includes('.')}
@@ -573,18 +573,19 @@ export function BottomInputPanel({
             </>
           )}
 
-          {/* Done Button */}
-          <div className={isWorkoutVariant ? 'px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]' : 'px-4 pb-6'}>
-            <button
-              onClick={handleDone}
-              className={`premium-button premium-button-primary flex w-full items-center justify-center gap-2 active:scale-95 ${
-                isWorkoutVariant ? workoutFooterButtonHeightClass : 'h-12'
-              }`}
-            >
-              <Check className="w-5 h-5" />
-              {submitLabel ?? (isWorkoutVariant ? 'Next' : 'Done')}
-            </button>
-          </div>
+          {(!isWorkoutVariant || isTimeMode) && (
+            <div className={isWorkoutVariant ? 'bottom-input-workout-footer px-3 pb-2' : 'px-4 pb-6'}>
+              <button
+                onClick={handleDone}
+                className={`premium-button premium-button-primary flex w-full items-center justify-center gap-2 active:scale-95 ${
+                  isWorkoutVariant ? workoutFooterButtonHeightClass : 'h-12'
+                }`}
+              >
+                <Check className="w-5 h-5" />
+                {submitLabel ?? (isWorkoutVariant ? 'Next' : 'Done')}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </>

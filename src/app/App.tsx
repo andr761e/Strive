@@ -4,7 +4,8 @@ import { useEffect } from 'react';
 import { WorkoutProvider } from './contexts/WorkoutContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { AuthProvider } from './contexts/AuthContext';
-import { reconcilePostWorkoutReminderSchedule } from './services/notifications';
+import { reconcilePostWorkoutReminderSchedule, requestNotificationPermissionOnce } from './services/notifications';
+import { installGlobalButtonHaptics } from './utils/haptics';
 
 export default function App() {
   useEffect(() => {
@@ -14,7 +15,11 @@ export default function App() {
       viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
     }
 
+    const cleanupHaptics = installGlobalButtonHaptics();
+    void requestNotificationPermissionOnce();
     void reconcilePostWorkoutReminderSchedule();
+
+    return cleanupHaptics;
   }, []);
 
   return (

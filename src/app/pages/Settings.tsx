@@ -24,12 +24,14 @@ export function SettingsPage() {
     autoStartTimer,
     timerNotifications,
     workoutReminders,
+    restTimers,
     setWeightUnit,
     setWeightIncrement,
     setTheme,
     setAutoStartTimer,
     setTimerNotifications,
     setWorkoutReminders,
+    setRestTimers,
   } = useSettings();
 
   const [editStatsOpen, setEditStatsOpen] = useState(false);
@@ -242,6 +244,13 @@ export function SettingsPage() {
               <div className="text-xs text-zinc-400">Show a persistent timer notification during workouts</div>
             </div>
             <Switch checked={timerNotifications} onCheckedChange={setTimerNotifications} />
+          </div>
+          <div className="p-4 flex items-center justify-between border-b border-white/10">
+            <div>
+              <div className="text-white mb-1">Rest Timers</div>
+              <div className="text-xs text-zinc-400">Start a countdown after completing a set</div>
+            </div>
+            <Switch checked={restTimers} onCheckedChange={setRestTimers} />
           </div>
           <div className="p-4 flex items-center justify-between">
             <div>

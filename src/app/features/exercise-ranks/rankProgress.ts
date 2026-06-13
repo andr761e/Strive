@@ -35,6 +35,7 @@ interface GetWorkoutRankProgressItemsInput {
   workoutsWithCompletedWorkout: RankableWorkout[];
   completedWorkoutId: string;
   fallbackBodyweightKg?: number | null;
+  userGender?: string | null;
 }
 
 const rankTierScore: Record<ExerciseRankTier, number> = {
@@ -239,11 +240,12 @@ export function getWorkoutRankProgressItems({
   workoutsWithCompletedWorkout,
   completedWorkoutId,
   fallbackBodyweightKg,
+  userGender,
 }: GetWorkoutRankProgressItemsInput) {
   return performedExercises
     .map((exercise) => {
-      const before = getExerciseRank(exercise, previousWorkouts, fallbackBodyweightKg);
-      const after = getExerciseRank(exercise, workoutsWithCompletedWorkout, fallbackBodyweightKg);
+      const before = getExerciseRank(exercise, previousWorkouts, fallbackBodyweightKg, userGender);
+      const after = getExerciseRank(exercise, workoutsWithCompletedWorkout, fallbackBodyweightKg, userGender);
 
       if (!after?.eligible) return null;
 

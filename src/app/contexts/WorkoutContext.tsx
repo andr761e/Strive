@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, type ReactNode, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { type Exercise, type ExerciseLog, type WorkoutSet } from '../data/mockData';
 import { useSettings } from './SettingsContext';
 import {
+  type ActiveWorkoutNotificationPayload,
   startActiveWorkoutNotification,
   stopActiveWorkoutNotification,
   updateActiveWorkoutNotification,
@@ -9,12 +10,21 @@ import {
 
 const ACTIVE_WORKOUT_STORAGE_KEY = 'strive_active_workout_v1';
 
+export interface RestTimerState {
+  exerciseId: string;
+  exerciseName: string;
+  durationSeconds: number;
+  endsAt: number;
+  completedNotified?: boolean;
+}
+
 interface PersistedActiveWorkout {
   workoutName: string;
   workoutStartTime: string;
   workoutExercises: ExerciseLog[];
   routineId: string | null;
   routineName: string | null;
+  activeRestTimer?: RestTimerState | null;
 }
 
 interface WorkoutContextType {
@@ -28,13 +38,15 @@ interface WorkoutContextType {
   routineName: string | null;
   workoutSheetOffset: number | null;
   isWorkoutSheetOffsetDragging: boolean;
-  startWorkout: (name: string, exercises: ExerciseLog[], routineId?: string, routineName?: string) => void;
+  activeRestTimer: RestTimerState | null;
+  startWorkout: (name: string, exercises: ExerciseLog[], routineId?: string, routineName?: string) => boolean;
   finishWorkout: () => void;
   discardWorkout: () => void;
   minimizeWorkout: () => void;
   expandWorkout: () => void;
   updateWorkoutExercises: (exercises: ExerciseLog[]) => void;
   setWorkoutSheetOffset: (offset: number | null, isDragging?: boolean) => void;
+  setActiveRestTimer: Dispatch<SetStateAction<RestTimerState | null>>;
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
@@ -58,6 +70,20 @@ function readPersistedActiveWorkout(): PersistedActiveWorkout | null {
       workoutExercises: parsed.workoutExercises,
       routineId: parsed.routineId ?? null,
       routineName: parsed.routineName ?? null,
+      activeRestTimer:
+        parsed.activeRestTimer &&
+        typeof parsed.activeRestTimer.exerciseId === 'string' &&
+        typeof parsed.activeRestTimer.exerciseName === 'string' &&
+        typeof parsed.activeRestTimer.durationSeconds === 'number' &&
+        typeof parsed.activeRestTimer.endsAt === 'number'
+          ? {
+              exerciseId: parsed.activeRestTimer.exerciseId,
+              exerciseName: parsed.activeRestTimer.exerciseName,
+              durationSeconds: parsed.activeRestTimer.durationSeconds,
+              endsAt: parsed.activeRestTimer.endsAt,
+              completedNotified: Boolean(parsed.activeRestTimer.completedNotified),
+            }
+          : null,
     };
   } catch {
     return null;
@@ -72,6 +98,30 @@ function writePersistedActiveWorkout(workout: PersistedActiveWorkout) {
 function clearPersistedActiveWorkout() {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(ACTIVE_WORKOUT_STORAGE_KEY);
+}
+
+function buildActiveWorkoutNotificationPayload({
+  workoutName,
+  workoutStartTime,
+  elapsedSeconds,
+  activeRestTimer,
+}: {
+  workoutName: string;
+  workoutStartTime: Date;
+  elapsedSeconds: number;
+  activeRestTimer: RestTimerState | null;
+}): ActiveWorkoutNotificationPayload {
+  return {
+    workoutName,
+    startedAt: workoutStartTime.toISOString(),
+    elapsedSeconds,
+    restTimer: activeRestTimer
+      ? {
+          exerciseName: activeRestTimer.exerciseName,
+          endsAt: activeRestTimer.endsAt,
+        }
+      : undefined,
+  };
 }
 
 export function WorkoutProvider({ children }: { children: ReactNode }) {
@@ -92,6 +142,9 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const [routineName, setRoutineName] = useState<string | null>(persistedWorkout?.routineName ?? null);
   const [workoutSheetOffset, setWorkoutSheetOffsetValue] = useState<number | null>(null);
   const [isWorkoutSheetOffsetDragging, setIsWorkoutSheetOffsetDragging] = useState(false);
+  const [activeRestTimer, setActiveRestTimer] = useState<RestTimerState | null>(
+    persistedWorkout?.activeRestTimer ?? null,
+  );
 
   // Timer effect
   useEffect(() => {
@@ -114,24 +167,26 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    void startActiveWorkoutNotification({
+    void startActiveWorkoutNotification(buildActiveWorkoutNotificationPayload({
       workoutName,
-      startedAt: workoutStartTime.toISOString(),
+      workoutStartTime,
       elapsedSeconds,
-    });
-  }, [isWorkoutActive, timerNotifications, workoutName, workoutStartTime]);
+      activeRestTimer,
+    }));
+  }, [activeRestTimer?.endsAt, activeRestTimer?.exerciseName, isWorkoutActive, timerNotifications, workoutName, workoutStartTime]);
 
   useEffect(() => {
     if (!isWorkoutActive || !workoutStartTime || !timerNotifications || elapsedSeconds <= 0) return;
 
     if (elapsedSeconds % 60 === 0) {
-      void updateActiveWorkoutNotification({
+      void updateActiveWorkoutNotification(buildActiveWorkoutNotificationPayload({
         workoutName,
-        startedAt: workoutStartTime.toISOString(),
+        workoutStartTime,
         elapsedSeconds,
-      });
+        activeRestTimer,
+      }));
     }
-  }, [elapsedSeconds, isWorkoutActive, timerNotifications, workoutName, workoutStartTime]);
+  }, [activeRestTimer, elapsedSeconds, isWorkoutActive, timerNotifications, workoutName, workoutStartTime]);
 
   useEffect(() => {
     if (!isWorkoutActive || !workoutStartTime) {
@@ -145,10 +200,18 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       workoutExercises,
       routineId,
       routineName,
+      activeRestTimer,
     });
-  }, [isWorkoutActive, routineId, routineName, workoutExercises, workoutName, workoutStartTime]);
+  }, [activeRestTimer, isWorkoutActive, routineId, routineName, workoutExercises, workoutName, workoutStartTime]);
 
   const startWorkout = (name: string, exercises: ExerciseLog[], routineId?: string, routineName?: string) => {
+    if (isWorkoutActive) {
+      setWorkoutSheetOffsetValue(null);
+      setIsWorkoutSheetOffsetDragging(false);
+      setIsMinimized(false);
+      return false;
+    }
+
     const startedAt = new Date();
 
     setWorkoutName(name);
@@ -159,8 +222,10 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setIsMinimized(false);
     setWorkoutSheetOffsetValue(null);
     setIsWorkoutSheetOffsetDragging(false);
+    setActiveRestTimer(null);
     setRoutineId(routineId || null);
     setRoutineName(routineName || null);
+    return true;
   };
 
   const finishWorkout = () => {
@@ -174,6 +239,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setIsMinimized(false);
     setWorkoutSheetOffsetValue(null);
     setIsWorkoutSheetOffsetDragging(false);
+    setActiveRestTimer(null);
     setRoutineId(null);
     setRoutineName(null);
   };
@@ -189,6 +255,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setIsMinimized(false);
     setWorkoutSheetOffsetValue(null);
     setIsWorkoutSheetOffsetDragging(false);
+    setActiveRestTimer(null);
     setRoutineId(null);
     setRoutineName(null);
   };
@@ -225,6 +292,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         routineName,
         workoutSheetOffset,
         isWorkoutSheetOffsetDragging,
+        activeRestTimer,
         startWorkout,
         finishWorkout,
         discardWorkout,
@@ -232,6 +300,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         expandWorkout,
         updateWorkoutExercises,
         setWorkoutSheetOffset,
+        setActiveRestTimer,
       }}
     >
       {children}

@@ -75,6 +75,7 @@ export interface ExerciseLog {
   mainMuscles: MuscleGroup[];
   sets: WorkoutSet[];
   supersetGroupId?: string;
+  restSeconds?: number;
   previousPerformance?: string;
   previousSets?: WorkoutSet[];
 }

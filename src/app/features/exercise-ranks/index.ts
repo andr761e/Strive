@@ -19,6 +19,7 @@ export type {
   ExerciseRankMetadata,
   ExerciseRankResult,
   ExerciseRankStandard,
+  ExerciseRankGender,
   ExerciseRankTier,
   RankCategory,
   RankDivision,

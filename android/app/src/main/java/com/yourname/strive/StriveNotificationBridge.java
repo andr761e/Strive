@@ -26,6 +26,11 @@ public class StriveNotificationBridge {
     }
 
     @JavascriptInterface
+    public void requestPostNotificationsPermission() {
+        requestPostNotificationsPermissionIfNeeded();
+    }
+
+    @JavascriptInterface
     public void scheduleWorkoutReminders(String remindersJson) {
         requestPostNotificationsPermissionIfNeeded();
 
@@ -74,11 +79,23 @@ public class StriveNotificationBridge {
             String workoutName = payload.optString("workoutName", "Workout");
             int elapsedSeconds = payload.optInt("elapsedSeconds", 0);
             long startedAtMillis = parseIsoTime(payload.optString("startedAt", ""), 0L);
+            JSONObject restTimer = payload.optJSONObject("restTimer");
             Context context = activity.getApplicationContext();
             Intent intent = new Intent(context, ActiveWorkoutNotificationService.class)
                 .putExtra(ActiveWorkoutNotificationService.EXTRA_WORKOUT_NAME, workoutName)
                 .putExtra(ActiveWorkoutNotificationService.EXTRA_ELAPSED_SECONDS, elapsedSeconds)
                 .putExtra(ActiveWorkoutNotificationService.EXTRA_STARTED_AT_MILLIS, startedAtMillis);
+            if (restTimer != null) {
+                intent
+                    .putExtra(
+                        ActiveWorkoutNotificationService.EXTRA_REST_EXERCISE_NAME,
+                        restTimer.optString("exerciseName", "")
+                    )
+                    .putExtra(
+                        ActiveWorkoutNotificationService.EXTRA_REST_ENDS_AT_MILLIS,
+                        restTimer.optLong("endsAt", 0L)
+                    );
+            }
             ContextCompat.startForegroundService(context, intent);
         } catch (Exception ignored) {
             // Active workout notifications should never crash the WebView.

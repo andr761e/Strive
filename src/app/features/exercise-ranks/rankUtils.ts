@@ -195,6 +195,7 @@ export function getExerciseRank(
   exercise: RankableExercise | null | undefined,
   workouts: RankableWorkout[],
   userBodyweight?: number | null,
+  userGender?: string | null,
 ): ExerciseRankResult | null {
   if (!exercise) return null;
 
@@ -203,7 +204,7 @@ export function getExerciseRank(
     return getNoRankResult(exercise, 'not_eligible', 'Ranks are not available for this exercise yet.');
   }
 
-  const standards = getRankStandards(metadata.rankKey);
+  const standards = getRankStandards(metadata.rankKey, userGender);
   if (!standards) {
     return {
       ...getNoRankResult(exercise, 'missing_standards', 'Rank standards have not been configured for this exercise yet.'),

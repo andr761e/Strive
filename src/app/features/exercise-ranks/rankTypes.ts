@@ -15,6 +15,7 @@ export type RankDivision = 'I' | 'II' | 'III';
 
 export type RankCategory = 'barbell' | 'dumbbell' | 'weighted_bodyweight';
 export type RankLoadMode = 'total' | 'per_hand' | 'bodyweight_plus_external';
+export type ExerciseRankGender = 'male' | 'female';
 
 export interface ExerciseRankMetadata {
   rankEligible: boolean;

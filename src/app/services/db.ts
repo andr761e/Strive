@@ -16,6 +16,10 @@ const ALEX_SEED_USER_ID = '6fcb7a80-f6e7-4e4e-88da-15d4b9bcf502';
 
 const DEFAULT_TRACKED_EXERCISE_IDS = ['1', '13', '7'];
 const DEFAULT_PERSONAL_RECORD_EXERCISE_IDS = ['1', '13', '7', '18'];
+const PROFILE_GENDERS = ['Male', 'Female'] as const;
+const DEFAULT_EXERCISE_REST_SECONDS = 90;
+const MIN_EXERCISE_REST_SECONDS = 15;
+const MAX_EXERCISE_REST_SECONDS = 600;
 
 export type ProgressSectionKey =
   | 'strengthChart'
@@ -50,6 +54,13 @@ export const progressMuscleGroups: MuscleGroup[] = [
   'Warm-up',
   'Abs',
 ];
+
+function normalizeProfileGender(gender?: string | null): (typeof PROFILE_GENDERS)[number] | null {
+  const normalized = gender?.trim().toLowerCase();
+  if (normalized === 'male' || normalized === 'man') return 'Male';
+  if (normalized === 'female' || normalized === 'woman') return 'Female';
+  return null;
+}
 
 export interface WorkoutSet {
   setNumber: number;
@@ -143,6 +154,13 @@ export interface ProgressPreference {
   currentGoals: CurrentGoalPreference[];
 }
 
+export interface ExerciseRestPreference {
+  userId: string;
+  exerciseId: string;
+  restSeconds: number;
+  updatedAt: string;
+}
+
 export interface CurrentGoalPreference {
   exerciseId: string;
   targetWeight: number;
@@ -176,6 +194,7 @@ interface LocalDb {
   workouts: WorkoutRecord[];
   routines: WorkoutRoutine[];
   progressPreferences: ProgressPreference[];
+  exerciseRestPreferences: ExerciseRestPreference[];
 }
 
 interface SaveWorkoutInput {
@@ -222,6 +241,16 @@ function normalizeBodyweightKg(value: unknown) {
   const bodyweight = Number(value);
   if (!Number.isFinite(bodyweight) || bodyweight <= 0) return undefined;
   return Math.max(30, Math.min(300, Math.round(bodyweight * 10) / 10));
+}
+
+function normalizeRestSeconds(value: unknown, fallback = DEFAULT_EXERCISE_REST_SECONDS) {
+  const restSeconds = Number(value);
+  const normalizedFallback = Number.isFinite(Number(fallback)) ? Number(fallback) : DEFAULT_EXERCISE_REST_SECONDS;
+  if (!Number.isFinite(restSeconds)) {
+    return Math.max(MIN_EXERCISE_REST_SECONDS, Math.min(MAX_EXERCISE_REST_SECONDS, Math.round(normalizedFallback)));
+  }
+
+  return Math.max(MIN_EXERCISE_REST_SECONDS, Math.min(MAX_EXERCISE_REST_SECONDS, Math.round(restSeconds)));
 }
 
 function getDateOnly(date = new Date()) {
@@ -498,11 +527,35 @@ function normalizePreference(raw: Partial<ProgressPreference> | undefined, userI
   };
 }
 
+function normalizeExerciseRestPreferences(
+  rawPreferences: Array<Partial<ExerciseRestPreference>> | undefined,
+  userIds: Set<string>,
+): ExerciseRestPreference[] {
+  if (!Array.isArray(rawPreferences)) return [];
+
+  const preferencesByKey = new Map<string, ExerciseRestPreference>();
+
+  rawPreferences.forEach((preference) => {
+    if (!preference.userId || !preference.exerciseId) return;
+    if (!userIds.has(preference.userId)) return;
+    if (!exercises.some((exercise) => exercise.id === preference.exerciseId)) return;
+
+    preferencesByKey.set(`${preference.userId}:${preference.exerciseId}`, {
+      userId: preference.userId,
+      exerciseId: preference.exerciseId,
+      restSeconds: normalizeRestSeconds(preference.restSeconds),
+      updatedAt: preference.updatedAt ?? new Date().toISOString(),
+    });
+  });
+
+  return Array.from(preferencesByKey.values());
+}
+
 function normalizeDatabase(input: Partial<LocalDb> | null | undefined) {
   const rawUsers = (Array.isArray(input?.users) ? input.users : seedDatabase.users) as Array<Partial<DBUser>>;
   const users = rawUsers.map((user) => ({
     ...user,
-    gender: typeof user.gender === 'string' && user.gender.trim() ? user.gender.trim() : 'Prefer not to say',
+    gender: normalizeProfileGender(user.gender) ?? 'Male',
   })) as DBUser[];
   const userIds = new Set(users.map((user) => user.id));
   const rawInputWorkouts = Array.isArray(input?.workouts) ? input.workouts : seedDatabase.workouts;
@@ -537,12 +590,14 @@ function normalizeDatabase(input: Partial<LocalDb> | null | undefined) {
     const existing = input?.progressPreferences?.find((preference) => preference.userId === user.id);
     return normalizePreference(existing, user.id);
   });
+  const exerciseRestPreferences = normalizeExerciseRestPreferences(input?.exerciseRestPreferences, userIds);
 
   return {
     users,
     workouts,
     routines: normalizedRoutines,
     progressPreferences,
+    exerciseRestPreferences,
   };
 }
 
@@ -934,8 +989,9 @@ export const DataService = {
     if (!user.birthday || Number.isNaN(new Date(`${user.birthday}T00:00:00`).getTime())) {
       throw new Error('Please enter a valid birthday.');
     }
-    if (!user.gender?.trim()) {
-      throw new Error('Please select a gender.');
+    const gender = normalizeProfileGender(user.gender);
+    if (!gender) {
+      throw new Error('Please select male or female.');
     }
 
     if (existingUsername) {
@@ -952,7 +1008,7 @@ export const DataService = {
       username,
       email,
       birthday: user.birthday,
-      gender: user.gender.trim(),
+      gender,
       dateJoined: normalizeDate(now),
       password: user.password,
       height: Math.max(100, Math.min(250, Math.round(Number(user.height) || 170))),
@@ -975,9 +1031,16 @@ export const DataService = {
     const userIndex = db.users.findIndex((item) => item.id === userId);
     if (userIndex < 0) return null;
 
+    const normalizedGender =
+      'gender' in updates && updates.gender !== undefined ? normalizeProfileGender(updates.gender) : undefined;
+    if ('gender' in updates && updates.gender !== undefined && !normalizedGender) {
+      throw new Error('Please select male or female.');
+    }
+
     const updatedUser = {
       ...db.users[userIndex],
       ...updates,
+      ...(normalizedGender ? { gender: normalizedGender } : {}),
       updatedAt: new Date().toISOString(),
     };
 
@@ -997,6 +1060,7 @@ export const DataService = {
       ...createStarterRoutinesForUser(userId, now),
       ...db.routines.filter((routine) => routine.userId !== userId),
     ];
+    db.exerciseRestPreferences = db.exerciseRestPreferences.filter((preference) => preference.userId !== userId);
     db.progressPreferences = [
       getDefaultProgressPreference(userId),
       ...db.progressPreferences.filter((preference) => preference.userId !== userId),
@@ -1019,6 +1083,7 @@ export const DataService = {
     db.workouts = db.workouts.filter((workout) => workout.userId !== userId);
     db.routines = db.routines.filter((routine) => routine.userId !== userId);
     db.progressPreferences = db.progressPreferences.filter((preference) => preference.userId !== userId);
+    db.exerciseRestPreferences = db.exerciseRestPreferences.filter((preference) => preference.userId !== userId);
 
     saveDb(db);
     return true;
@@ -1077,6 +1142,42 @@ export const DataService = {
       item.exercises.some((exercise) => exercise.exerciseId === exerciseId),
     );
     return workout?.exercises.find((exercise) => exercise.exerciseId === exerciseId)?.sets ?? null;
+  },
+
+  getExerciseRestSeconds(userId: string, exerciseId: string, fallback = DEFAULT_EXERCISE_REST_SECONDS) {
+    if (!userId || !exerciseId) return normalizeRestSeconds(fallback);
+
+    const preference = getDb().exerciseRestPreferences.find(
+      (item) => item.userId === userId && item.exerciseId === exerciseId,
+    );
+
+    return normalizeRestSeconds(preference?.restSeconds, fallback);
+  },
+
+  updateExerciseRestSeconds(userId: string, exerciseId: string, restSeconds: number) {
+    if (!userId || !exerciseId || !exercises.some((exercise) => exercise.id === exerciseId)) return null;
+
+    const db = getDb();
+    const now = new Date().toISOString();
+    const normalizedRestSeconds = normalizeRestSeconds(restSeconds);
+    const existingIndex = db.exerciseRestPreferences.findIndex(
+      (item) => item.userId === userId && item.exerciseId === exerciseId,
+    );
+    const preference: ExerciseRestPreference = {
+      userId,
+      exerciseId,
+      restSeconds: normalizedRestSeconds,
+      updatedAt: now,
+    };
+
+    if (existingIndex >= 0) {
+      db.exerciseRestPreferences[existingIndex] = preference;
+    } else {
+      db.exerciseRestPreferences = [preference, ...db.exerciseRestPreferences];
+    }
+
+    saveDb(db);
+    return preference;
   },
 
   getRoutinesByUserId(userId: string) {

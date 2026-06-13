@@ -1,4 +1,5 @@
 const NOTIFICATION_SCHEDULE_STORAGE_KEY = 'strive_notification_schedule_v1';
+const NOTIFICATION_PERMISSION_PROMPT_STORAGE_KEY = 'strive_notification_permission_prompted_v1';
 
 export const POST_WORKOUT_REMINDER_HOURS = [24, 48, 72, 96, 120, 144, 168] as const;
 
@@ -17,9 +18,14 @@ export interface ActiveWorkoutNotificationPayload {
   workoutName: string;
   startedAt: string;
   elapsedSeconds: number;
+  restTimer?: {
+    exerciseName: string;
+    endsAt: number;
+  };
 }
 
 interface StriveNotificationBridge {
+  requestPostNotificationsPermission?: () => Promise<void> | void;
   scheduleWorkoutReminders?: (reminders: ScheduledWorkoutReminder[]) => Promise<void> | void;
   cancelWorkoutReminders?: (workoutId?: string) => Promise<void> | void;
   startActiveWorkoutNotification?: (payload: ActiveWorkoutNotificationPayload) => Promise<void> | void;
@@ -28,6 +34,7 @@ interface StriveNotificationBridge {
 }
 
 interface AndroidStriveNotificationBridge {
+  requestPostNotificationsPermission?: () => void;
   scheduleWorkoutReminders?: (remindersJson: string) => void;
   cancelWorkoutReminders?: (workoutId: string) => void;
   startActiveWorkoutNotification?: (payloadJson: string) => void;
@@ -50,6 +57,7 @@ function getBridge() {
   if (!nativeBridge) return undefined;
 
   return {
+    requestPostNotificationsPermission: () => nativeBridge.requestPostNotificationsPermission?.(),
     scheduleWorkoutReminders: (reminders: ScheduledWorkoutReminder[]) =>
       nativeBridge.scheduleWorkoutReminders?.(JSON.stringify(reminders)),
     cancelWorkoutReminders: (workoutId?: string) => nativeBridge.cancelWorkoutReminders?.(workoutId ?? ''),
@@ -59,6 +67,39 @@ function getBridge() {
       nativeBridge.updateActiveWorkoutNotification?.(JSON.stringify(payload)),
     stopActiveWorkoutNotification: () => nativeBridge.stopActiveWorkoutNotification?.(),
   } satisfies StriveNotificationBridge;
+}
+
+function getPermissionPromptStorageKey(userId?: string) {
+  return userId
+    ? `${NOTIFICATION_PERMISSION_PROMPT_STORAGE_KEY}:${userId}`
+    : NOTIFICATION_PERMISSION_PROMPT_STORAGE_KEY;
+}
+
+async function requestWebNotificationPermission() {
+  if (typeof window === 'undefined') return;
+  if (!('Notification' in window)) return;
+
+  const permission = window.Notification.permission;
+  if (permission === 'default') {
+    await window.Notification.requestPermission();
+  }
+}
+
+export async function requestNotificationPermissionOnce(userId?: string) {
+  if (typeof window === 'undefined') return;
+
+  const storageKey = getPermissionPromptStorageKey(userId);
+  if (window.localStorage.getItem(storageKey) === '1') return;
+
+  window.localStorage.setItem(storageKey, '1');
+
+  const bridge = getBridge();
+  if (bridge?.requestPostNotificationsPermission) {
+    await bridge.requestPostNotificationsPermission();
+    return;
+  }
+
+  await requestWebNotificationPermission();
 }
 
 function readStoredReminders() {

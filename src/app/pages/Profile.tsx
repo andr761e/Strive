@@ -6,11 +6,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { ExerciseFilterPicker } from '../components/ExerciseFilterPicker';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkout } from '../contexts/WorkoutContext';
 import { RankBadge, getExerciseRank, type ExerciseRankResult, type ExerciseRankTier, type RankDivision } from '../features/exercise-ranks';
 import { DataService, type CurrentGoalPreference, type PersonalRecord, type WorkoutRecord } from '../services/db';
 import { exercises, getExerciseLogging, type LoggingFieldKey } from '../data/mockData';
 import { formatDurationClock } from '../utils/timeFormatting';
-import { getWorkoutLiftedLoadVolume } from '../utils/workoutVolume';
+import { getExerciseLiftedLoadVolume, getWorkoutLiftedLoadVolume } from '../utils/workoutVolume';
 
 const rankTierScore: Record<ExerciseRankTier, number> = {
   Unranked: -1,
@@ -39,6 +40,7 @@ function getRankSortScore(result: ExerciseRankResult) {
 export function ProfilePage() {
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
+  const { isWorkoutActive, expandWorkout } = useWorkout();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const avatarImageRef = useRef<HTMLImageElement | null>(null);
   const [selectedRecordExerciseIds, setSelectedRecordExerciseIds] = useState<string[]>(() =>
@@ -87,14 +89,14 @@ export function ProfilePage() {
   const rankResults = useMemo(
     () =>
       profile.exerciseOptions
-        .map((exercise) => getExerciseRank(exercise, profile.workouts, user.weight))
+        .map((exercise) => getExerciseRank(exercise, profile.workouts, user.weight, user.gender))
         .filter((result): result is ExerciseRankResult => Boolean(result?.eligible))
         .sort((a, b) => {
           const rankScore = getRankSortScore(b) - getRankSortScore(a);
           if (rankScore !== 0) return rankScore;
           return (b.estimatedOneRepMax ?? 0) - (a.estimatedOneRepMax ?? 0);
         }),
-    [profile.exerciseOptions, profile.workouts, user.weight],
+    [profile.exerciseOptions, profile.workouts, user.gender, user.weight],
   );
   const topRankResults = useMemo(
     () => rankResults.filter((result) => result.status === 'ranked').slice(0, 3),
@@ -197,6 +199,17 @@ export function ProfilePage() {
   const formatWorkoutTotalWeight = (workout: WorkoutRecord) => {
     const total = getWorkoutTotalWeight(workout);
     return `${Math.round(total).toLocaleString()} kg lifted`;
+  };
+
+  const formatExerciseHistorySummary = (exercise: WorkoutRecord['exercises'][number]) => {
+    const exerciseMeta = exercises.find((item) => item.id === exercise.exerciseId);
+    const logging = getExerciseLogging(exerciseMeta);
+    const hasLoadVolume = logging.fields.some((field) => field.key === 'weight') && logging.fields.some((field) => field.key === 'reps');
+    const volume = getExerciseLiftedLoadVolume(exercise);
+
+    return hasLoadVolume
+      ? `${exercise.sets.length} sets - ${Math.round(volume).toLocaleString()} kg`
+      : `${exercise.sets.length} sets - ${logging.label}`;
   };
 
   const selectedHistoryWorkouts = selectedHistoryDate ? getWorkoutsForDay(selectedHistoryDate) : [];
@@ -496,7 +509,15 @@ export function ProfilePage() {
               </p>
               <button
                 type="button"
-                onClick={() => navigate('/exercise-selection')}
+                onClick={() => {
+                  if (isWorkoutActive) {
+                    expandWorkout();
+                    navigate('/');
+                    return;
+                  }
+
+                  navigate('/exercise-selection');
+                }}
                 className="premium-button premium-button-primary mt-4 min-h-11 px-4 text-sm font-medium"
               >
                 Log New Workout
@@ -1000,7 +1021,7 @@ export function ProfilePage() {
                             <div className="text-sm font-medium text-white">{exercise.exerciseName}</div>
                             <div className="text-xs text-zinc-500">{exercise.mainMuscles.join(', ')}</div>
                           </div>
-                          <span className="text-xs text-zinc-500">{exercise.sets.length} sets</span>
+                          <span className="shrink-0 text-right text-xs text-zinc-500">{formatExerciseHistorySummary(exercise)}</span>
                         </div>
                         <div className="space-y-1">
                           {exercise.sets.map((set, index) => (

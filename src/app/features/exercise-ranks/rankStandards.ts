@@ -1,4 +1,5 @@
 import type {
+  ExerciseRankGender,
   ExerciseRankMetadata,
   ExerciseRankStandard,
   RankCategory,
@@ -47,7 +48,7 @@ function makeStandards(startRatio: number, apexRatio: number, curve = 1.12): Exe
   });
 }
 
-export const exerciseRankStandards: Record<string, ExerciseRankStandard[]> = {
+export const maleExerciseRankStandards: Record<string, ExerciseRankStandard[]> = {
   barbell_bench_press: makeStandards(0.50, 2.00),
   incline_barbell_bench_press: makeStandards(0.42, 1.75),
 
@@ -90,6 +91,62 @@ export const exerciseRankStandards: Record<string, ExerciseRankStandard[]> = {
   chest_dip: makeStandards(1.05, 2.40),
   triceps_dip: makeStandards(1.00, 2.30),
 };
+
+export const femaleExerciseRankStandards: Record<string, ExerciseRankStandard[]> = {
+  barbell_bench_press: makeStandards(0.30, 1.30),
+  incline_barbell_bench_press: makeStandards(0.25, 1.12),
+
+  barbell_back_squat: makeStandards(0.55, 2.05),
+  high_bar_squat: makeStandards(0.50, 1.98),
+  low_bar_squat: makeStandards(0.58, 2.15),
+  front_squat: makeStandards(0.40, 1.65),
+
+  deadlift: makeStandards(0.65, 2.35),
+  romanian_deadlift: makeStandards(0.45, 1.80),
+  stiff_leg_deadlift: makeStandards(0.40, 1.65),
+
+  barbell_overhead_press: makeStandards(0.18, 0.78),
+  seated_barbell_shoulder_press: makeStandards(0.18, 0.75),
+
+  barbell_bent_over_row: makeStandards(0.32, 1.25),
+  pendlay_row: makeStandards(0.28, 1.15),
+
+  dumbbell_bench_press: makeStandards(0.22, 1.08),
+  incline_dumbbell_bench_press: makeStandards(0.20, 0.98),
+  decline_dumbbell_bench_press: makeStandards(0.24, 1.12),
+
+  dumbbell_shoulder_press: makeStandards(0.14, 0.72),
+  seated_dumbbell_shoulder_press: makeStandards(0.15, 0.76),
+
+  dumbbell_row: makeStandards(0.28, 1.10),
+  chest_supported_dumbbell_row: makeStandards(0.25, 1.00),
+
+  barbell_curl: makeStandards(0.12, 0.55),
+  ez_bar_curl: makeStandards(0.11, 0.52),
+
+  dumbbell_curl: makeStandards(0.09, 0.44),
+  alternating_dumbbell_curl: makeStandards(0.085, 0.42),
+  seated_dumbbell_curl: makeStandards(0.08, 0.40),
+  incline_dumbbell_curl: makeStandards(0.075, 0.38),
+  hammer_curl: makeStandards(0.10, 0.48),
+
+  pull_up: makeStandards(0.95, 1.70),
+  chin_up: makeStandards(0.95, 1.75),
+  chest_dip: makeStandards(1.00, 1.95),
+  triceps_dip: makeStandards(0.95, 1.85),
+};
+
+const exerciseRankStandardsByGender: Record<ExerciseRankGender, Record<string, ExerciseRankStandard[]>> = {
+  male: maleExerciseRankStandards,
+  female: femaleExerciseRankStandards,
+};
+
+export const exerciseRankStandards = maleExerciseRankStandards;
+
+export function getExerciseRankGender(gender?: string | null): ExerciseRankGender {
+  const normalizedGender = gender?.trim().toLowerCase();
+  return normalizedGender === 'female' ? 'female' : 'male';
+}
 
 const metadataByExerciseId: Record<string, ExerciseRankMetadata> = {
   '1': metadata('barbell_bench_press', 'barbell', 'total'),
@@ -226,6 +283,9 @@ export function getRankMetadataByExercise(exercise: { id: string; name: string; 
   return null;
 }
 
-export function getRankStandards(rankKey: string | undefined) {
-  return rankKey ? exerciseRankStandards[rankKey] ?? null : null;
+export function getRankStandards(rankKey: string | undefined, gender?: string | null) {
+  if (!rankKey) return null;
+
+  const rankGender = getExerciseRankGender(gender);
+  return exerciseRankStandardsByGender[rankGender][rankKey] ?? maleExerciseRankStandards[rankKey] ?? null;
 }

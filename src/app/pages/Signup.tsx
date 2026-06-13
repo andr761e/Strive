@@ -14,7 +14,7 @@ type SignupStep = 'account' | 'training';
 
 const experienceLevels = ['Beginner', 'Intermediate', 'Advanced', 'Elite'];
 const goals = ['Strength', 'Hypertrophy', 'Endurance', 'General Fitness', 'Weight Loss'];
-const genderOptions = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
+const genderOptions = ['Male', 'Female'];
 
 function getStrengthLabel(score: number) {
   if (score <= 2) return 'Weak';
@@ -83,8 +83,8 @@ export function SignupPage() {
     if (!birthday || Number.isNaN(birthdayDate.getTime())) {
       return 'Please enter a valid birthday.';
     }
-    if (!gender) {
-      return 'Please select a gender.';
+    if (!genderOptions.includes(gender)) {
+      return 'Please select male or female.';
     }
     if (!parsedHeight || parsedHeight < 100 || parsedHeight > 250) {
       return 'Please enter a height between 100 and 250 cm.';

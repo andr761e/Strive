@@ -316,8 +316,8 @@ export function ProgressPage() {
   const workouts = useMemo(() => (user ? DataService.getWorkoutsByUserId(user.id) : []), [user?.id]);
   const hasTrainingData = workouts.length > 0;
   const selectedExerciseRank = useMemo(
-    () => (selectedExercise && user ? getExerciseRank(selectedExercise, workouts, user.weight) : null),
-    [selectedExercise, user?.weight, workouts],
+    () => (selectedExercise && user ? getExerciseRank(selectedExercise, workouts, user.weight, user.gender) : null),
+    [selectedExercise, user?.gender, user?.weight, workouts],
   );
 
   const filteredProgressData = useMemo(() => {
@@ -459,7 +459,7 @@ export function ProgressPage() {
 
   const getRankForExerciseId = (exerciseId: string) => {
     const exercise = availableExercises.find((item) => item.id === exerciseId);
-    return exercise && user ? getExerciseRank(exercise, workouts, user.weight) : null;
+    return exercise && user ? getExerciseRank(exercise, workouts, user.weight, user.gender) : null;
   };
 
   if (!user) return null;

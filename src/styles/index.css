@@ -801,6 +801,116 @@
       color-mix(in srgb, var(--strive-surface-raised) 94%, var(--strive-bg) 6%);
   }
 
+  .bottom-input-panel-workout-number {
+    display: flex;
+    height: min(40dvh, calc(100dvh - env(safe-area-inset-bottom)));
+    max-height: calc(100dvh - env(safe-area-inset-bottom));
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
+
+  .bottom-input-panel-workout-number .bottom-input-panel-inner-workout {
+    display: flex;
+    min-height: 0;
+    height: 100%;
+    flex: 1 1 auto;
+    flex-direction: column;
+  }
+
+  .bottom-input-panel-workout-number .bottom-input-header-workout {
+    min-height: 0;
+    flex: 0 0 auto;
+    padding-top: 0.42rem !important;
+    padding-bottom: 0.42rem !important;
+  }
+
+  .bottom-input-panel-workout-number .bottom-input-title {
+    font-size: clamp(0.86rem, 1.9dvh, 1rem) !important;
+    line-height: 1.1;
+  }
+
+  .bottom-input-panel-workout-number .bottom-input-close {
+    padding: 0.36rem !important;
+  }
+
+  .bottom-input-panel-workout-number .bottom-input-close svg {
+    width: 1.1rem !important;
+    height: 1.1rem !important;
+  }
+
+  .bottom-input-workout-pad {
+    display: grid;
+    min-height: 0;
+    flex: 1 1 auto;
+    grid-template-rows: minmax(2.75rem, 0.9fr) minmax(0, 3.3fr) minmax(2.75rem, 0.9fr);
+    gap: clamp(0.5rem, 1dvh, 0.75rem);
+    padding-top: clamp(0.55rem, 1dvh, 0.75rem) !important;
+    padding-bottom: clamp(0.75rem, 1.25dvh, 1rem) !important;
+  }
+
+  .bottom-input-workout-step-row,
+  .bottom-input-workout-bottom-row,
+  .bottom-input-workout-digit-grid {
+    min-height: 0;
+  }
+
+  .bottom-input-workout-digit-grid {
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+  }
+
+  .bottom-input-workout-key {
+    min-height: 0;
+    height: 100%;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-radius: 0.9rem;
+    font-size: clamp(1.18rem, 2.65dvh, 1.45rem) !important;
+    font-weight: 650;
+    line-height: 1;
+  }
+
+  .bottom-input-workout-digit-grid .bottom-input-workout-key,
+  .bottom-input-workout-bottom-row .bottom-input-workout-key {
+    font-size: clamp(1.28rem, 3dvh, 1.58rem) !important;
+    font-weight: 650;
+  }
+
+  .bottom-input-workout-key .bottom-input-value-text,
+  .bottom-input-workout-key .bottom-input-invalid {
+    font-size: clamp(1.5rem, 3.55dvh, 1.9rem) !important;
+    font-weight: 750;
+    line-height: 1;
+  }
+
+  .bottom-input-workout-key .bottom-input-muted {
+    font-size: clamp(0.82rem, 1.95dvh, 0.95rem) !important;
+  }
+
+  .bottom-input-workout-footer {
+    flex: 0 0 auto;
+    padding-top: 0;
+    padding-bottom: clamp(0.3rem, 0.75dvh, 0.5rem) !important;
+  }
+
+  .bottom-input-workout-next {
+    min-height: 0;
+    height: clamp(2.4rem, 5.4dvh, 3rem);
+    border-radius: 0.9rem;
+    font-size: clamp(0.95rem, 2.25dvh, 1.1rem) !important;
+    line-height: 1;
+  }
+
+  .bottom-input-workout-next svg {
+    width: clamp(1rem, 2.5dvh, 1.2rem) !important;
+    height: clamp(1rem, 2.5dvh, 1.2rem) !important;
+  }
+
+  .bottom-input-panel-workout-time {
+    max-height: min(68dvh, calc(100dvh - env(safe-area-inset-bottom) - 0.75rem));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
   .bottom-input-header {
     border-color: var(--strive-border);
     color: var(--strive-text);
@@ -1043,6 +1153,9 @@
   }
 
   .active-set-row {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.12);
     border-radius: 11px;
     background: rgba(7, 9, 13, 0.52);
@@ -1050,10 +1163,44 @@
     will-change: transform;
   }
 
+  .active-set-row > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .active-set-row::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background:
+      linear-gradient(270deg, rgba(34, 197, 94, 0.24), rgba(34, 197, 94, 0.12)),
+      rgba(34, 197, 94, 0.1);
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: right center;
+    pointer-events: none;
+  }
+
   .active-set-row-complete {
     border-color: rgba(34, 197, 94, 0.24);
-    background: linear-gradient(90deg, rgba(34, 197, 94, 0.12), rgba(7, 9, 13, 0.58) 48%);
-    box-shadow: inset 3px 0 0 rgba(34, 197, 94, 0.55);
+    background: rgba(7, 9, 13, 0.58);
+    box-shadow: inset -3px 0 0 rgba(34, 197, 94, 0.48);
+  }
+
+  .active-set-row-complete::before {
+    opacity: 1;
+    animation: active-set-complete-sweep 380ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  @keyframes active-set-complete-sweep {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
   }
 
   .active-workout-field {
@@ -1063,6 +1210,13 @@
     text-align: center;
     font-variant-numeric: tabular-nums;
     transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+  }
+
+  .active-set-delete-action {
+    border: 1px solid rgba(252, 165, 165, 0.18);
+    background:
+      radial-gradient(circle at 50% 15%, rgba(248, 113, 113, 0.32), transparent 42%),
+      linear-gradient(180deg, #ef4444, #dc2626);
   }
 
   .reorder-drag-preview {
@@ -1436,7 +1590,14 @@
   :root[data-theme='arctic'] .active-set-row-complete,
   :root[data-theme='chalk'] .active-set-row-complete {
     border-color: rgba(22, 163, 74, 0.22);
-    background: linear-gradient(90deg, rgba(22, 163, 74, 0.13), color-mix(in srgb, var(--strive-surface) 88%, var(--strive-text) 3%) 52%);
+    background: color-mix(in srgb, var(--strive-surface) 88%, var(--strive-text) 3%);
+  }
+
+  :root[data-theme='arctic'] .active-set-row-complete::before,
+  :root[data-theme='chalk'] .active-set-row-complete::before {
+    background:
+      linear-gradient(270deg, rgba(22, 163, 74, 0.22), rgba(22, 163, 74, 0.1)),
+      rgba(22, 163, 74, 0.08);
   }
 
   :root[data-theme='arctic'] .bottom-input-panel,
@@ -1515,16 +1676,6 @@
     width: 0;
     height: 0;
     display: none;
-  }
-
-  .workout-input-panel-offset {
-    bottom: max(0.75rem, env(safe-area-inset-bottom));
-  }
-
-  @media (hover: none) and (pointer: coarse) {
-    .workout-input-panel-offset {
-      bottom: max(3rem, env(safe-area-inset-bottom));
-    }
   }
 
   .empty-state {

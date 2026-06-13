@@ -61,6 +61,12 @@ final class StriveNotificationHelper {
         if (!canPostNotifications(context)) return;
 
         Notification notification = buildActiveWorkoutNotification(context, workoutName, elapsedSeconds);
+        showActiveWorkoutNotification(context, notification);
+    }
+
+    static void showActiveWorkoutNotification(Context context, Notification notification) {
+        if (!canPostNotifications(context)) return;
+
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager != null) {
             manager.notify(ACTIVE_WORKOUT_NOTIFICATION_ID, notification);
@@ -68,13 +74,43 @@ final class StriveNotificationHelper {
     }
 
     static Notification buildActiveWorkoutNotification(Context context, String workoutName, int elapsedSeconds) {
+        return buildActiveWorkoutNotification(context, workoutName, elapsedSeconds, "", -1);
+    }
+
+    static Notification buildActiveWorkoutNotification(
+        Context context,
+        String workoutName,
+        int elapsedSeconds,
+        String restExerciseName,
+        int restRemainingSeconds
+    ) {
         createNotificationChannels(context);
         long chronometerBase = System.currentTimeMillis() - Math.max(0, elapsedSeconds) * 1000L;
+        boolean hasRestTimer = restRemainingSeconds > 0;
+        String safeWorkoutName = workoutName == null || workoutName.trim().isEmpty() ? "Workout" : workoutName;
+        String safeRestExerciseName = restExerciseName == null ? "" : restExerciseName.trim();
+        String title = hasRestTimer ? "Rest " + formatDuration(restRemainingSeconds) : "Workout active";
+        String contentText = hasRestTimer
+            ? safeWorkoutName
+                + " - workout "
+                + formatDuration(Math.max(0, elapsedSeconds))
+                + " - "
+                + (safeRestExerciseName.isEmpty() ? "Rest timer" : safeRestExerciseName)
+            : safeWorkoutName + " - timer running";
+        String bigText = hasRestTimer
+            ? safeWorkoutName
+                + " - Workout "
+                + formatDuration(Math.max(0, elapsedSeconds))
+                + " - Rest "
+                + formatDuration(restRemainingSeconds)
+                + (safeRestExerciseName.isEmpty() ? "" : " after " + safeRestExerciseName)
+            : contentText;
         Notification notification = new NotificationCompat.Builder(context, ACTIVE_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_strive)
             .setColor(Color.rgb(59, 130, 246))
-            .setContentTitle("Workout active")
-            .setContentText(workoutName + " - timer running")
+            .setContentTitle(title)
+            .setContentText(contentText)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(bigText))
             .setContentIntent(openAppIntent(context))
             .setDeleteIntent(activeWorkoutDismissIntent(context))
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
@@ -91,6 +127,19 @@ final class StriveNotificationHelper {
 
         notification.flags |= Notification.FLAG_ONGOING_EVENT | Notification.FLAG_NO_CLEAR | Notification.FLAG_FOREGROUND_SERVICE;
         return notification;
+    }
+
+    private static String formatDuration(int totalSeconds) {
+        int safeSeconds = Math.max(0, totalSeconds);
+        int hours = safeSeconds / 3600;
+        int minutes = (safeSeconds % 3600) / 60;
+        int seconds = safeSeconds % 60;
+
+        if (hours > 0) {
+            return String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds);
+        }
+
+        return String.format(Locale.US, "%d:%02d", minutes, seconds);
     }
 
     static void stopActiveWorkoutNotification(Context context) {

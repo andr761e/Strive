@@ -31,13 +31,14 @@ export function PersistentWorkoutBar() {
     isWorkoutActive,
     workoutName,
     elapsedSeconds,
-    workoutExercises,
     isMinimized,
     expandWorkout,
     workoutSheetOffset,
     setWorkoutSheetOffset,
+    activeRestTimer,
   } = useWorkout();
   const [isPointerActive, setIsPointerActive] = useState(false);
+  const [restNow, setRestNow] = useState(() => Date.now());
   const pointerIdRef = useRef<number | null>(null);
   const startYRef = useRef(0);
   const offsetRef = useRef(0);
@@ -89,6 +90,17 @@ export function PersistentWorkoutBar() {
     },
     [],
   );
+
+  useEffect(() => {
+    if (!activeRestTimer) return;
+
+    setRestNow(Date.now());
+    const interval = window.setInterval(() => {
+      setRestNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [activeRestTimer]);
 
   useEffect(() => {
     if (!isPointerActive) return;
@@ -191,6 +203,10 @@ export function PersistentWorkoutBar() {
     return null;
   }
 
+  const restRemainingSeconds = activeRestTimer
+    ? Math.max(0, Math.ceil((activeRestTimer.endsAt - restNow) / 1000))
+    : undefined;
+
   return (
     <div
       onPointerDown={handleDragStart}
@@ -201,7 +217,7 @@ export function PersistentWorkoutBar() {
       <WorkoutCollapsedHeader
         workoutName={workoutName}
         elapsedSeconds={elapsedSeconds}
-        exerciseCount={workoutExercises.length}
+        restRemainingSeconds={restRemainingSeconds}
       />
     </div>
   );

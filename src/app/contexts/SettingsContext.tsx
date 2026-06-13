@@ -104,6 +104,7 @@ interface PersistedSettings {
   autoStartTimer: boolean;
   timerNotifications: boolean;
   workoutReminders: boolean;
+  restTimers: boolean;
   theme: AppTheme;
 }
 
@@ -115,6 +116,7 @@ interface SettingsContextType {
   autoStartTimer: boolean;
   timerNotifications: boolean;
   workoutReminders: boolean;
+  restTimers: boolean;
   setWeightUnit: (unit: WeightUnit) => void;
   setWeightIncrement: (increment: WeightIncrement) => void;
   setTrackingMode: (mode: TrackingMode) => void;
@@ -122,6 +124,7 @@ interface SettingsContextType {
   setAutoStartTimer: (enabled: boolean) => void;
   setTimerNotifications: (enabled: boolean) => void;
   setWorkoutReminders: (enabled: boolean) => void;
+  setRestTimers: (enabled: boolean) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -146,6 +149,7 @@ function readSavedSettings(): Partial<PersistedSettings> {
       autoStartTimer: typeof parsed.autoStartTimer === 'boolean' ? parsed.autoStartTimer : undefined,
       timerNotifications: typeof parsed.timerNotifications === 'boolean' ? parsed.timerNotifications : undefined,
       workoutReminders: typeof parsed.workoutReminders === 'boolean' ? parsed.workoutReminders : undefined,
+      restTimers: typeof parsed.restTimers === 'boolean' ? parsed.restTimers : undefined,
       theme: isAppTheme(parsed.theme) ? parsed.theme : undefined,
     };
   } catch {
@@ -162,6 +166,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [autoStartTimer, setAutoStartTimer] = useState(initialSettings.autoStartTimer ?? true);
   const [timerNotifications, setTimerNotifications] = useState(initialSettings.timerNotifications ?? true);
   const [workoutReminders, setWorkoutReminders] = useState(initialSettings.workoutReminders ?? true);
+  const [restTimers, setRestTimers] = useState(initialSettings.restTimers ?? true);
 
   useEffect(() => {
     document.documentElement.classList.add('dark');
@@ -178,9 +183,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       autoStartTimer,
       timerNotifications,
       workoutReminders,
+      restTimers,
     };
     localStorage.setItem('striveSettings', JSON.stringify(settings));
-  }, [weightUnit, weightIncrement, trackingMode, theme, autoStartTimer, timerNotifications, workoutReminders]);
+  }, [weightUnit, weightIncrement, trackingMode, theme, autoStartTimer, timerNotifications, workoutReminders, restTimers]);
 
   return (
     <SettingsContext.Provider
@@ -192,6 +198,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         autoStartTimer,
         timerNotifications,
         workoutReminders,
+        restTimers,
         setWeightUnit,
         setWeightIncrement,
         setTrackingMode,
@@ -199,6 +206,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setAutoStartTimer,
         setTimerNotifications,
         setWorkoutReminders,
+        setRestTimers,
       }}
     >
       {children}

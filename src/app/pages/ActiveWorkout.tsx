@@ -40,10 +40,10 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { DataService } from '../services/db';
 import { formatDurationClock } from '../utils/timeFormatting';
-import { getExerciseLiftedLoadVolume, getWorkoutLiftedLoadVolume } from '../utils/workoutVolume';
 import { ExerciseRankCard, getExerciseRank, type ExerciseRankResult } from '../features/exercise-ranks';
 import { BottomNav } from '../components/BottomNav';
 import { WorkoutCollapsedHeader } from '../components/WorkoutCollapsedHeader';
+import { triggerHaptic } from '../utils/haptics';
 
 interface InputState {
   exerciseId: string;
@@ -62,9 +62,42 @@ const ACTIVE_WORKOUT_SHEET_EASING = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
 
 const ACTIVE_WORKOUT_COLLAPSED_BAR_HEIGHT = 68;
 const ACTIVE_WORKOUT_BOTTOM_NAV_HEIGHT = 68;
+const DEFAULT_REST_SECONDS = 90;
+const REST_STEP_SECONDS = 15;
+const MIN_REST_SECONDS = 15;
+const MAX_REST_SECONDS = 600;
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function clampRestSeconds(value: number | null | undefined) {
+  const normalizedValue = Number(value ?? DEFAULT_REST_SECONDS);
+  if (!Number.isFinite(normalizedValue)) return DEFAULT_REST_SECONDS;
+  return Math.max(MIN_REST_SECONDS, Math.min(MAX_REST_SECONDS, Math.round(normalizedValue)));
+}
+
+function getExerciseLogRestSeconds(exercise: Pick<ExerciseLog, 'restSeconds'>) {
+  return clampRestSeconds(exercise.restSeconds);
+}
+
+function getPreferredExerciseRestSeconds(userId: string | undefined, exerciseId: string, fallback?: number) {
+  return userId
+    ? DataService.getExerciseRestSeconds(userId, exerciseId, fallback ?? DEFAULT_REST_SECONDS)
+    : clampRestSeconds(fallback);
+}
+
+function formatRestTimer(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.max(0, seconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+function withPreferredRestSeconds(exerciseLog: ExerciseLog, userId?: string): ExerciseLog {
+  return {
+    ...exerciseLog,
+    restSeconds: getPreferredExerciseRestSeconds(userId, exerciseLog.exerciseId, exerciseLog.restSeconds),
+  };
 }
 
 function getActiveWorkoutCollapsedOffset() {
@@ -82,7 +115,7 @@ function createExerciseLogsForWorkout(items: Array<Exercise | ExerciseLog>, user
 
   if ('sets' in items[0]) {
     return (items as ExerciseLog[]).map((exerciseLog) => ({
-      ...exerciseLog,
+      ...withPreferredRestSeconds(exerciseLog, userId),
       previousSets: userId
         ? DataService.getPreviousWorkoutSets(userId, exerciseLog.exerciseId) ?? exerciseLog.previousSets
         : exerciseLog.previousSets,
@@ -94,6 +127,7 @@ function createExerciseLogsForWorkout(items: Array<Exercise | ExerciseLog>, user
     exerciseName: exercise.name,
     mainMuscles: exercise.mainMuscles,
     sets: [],
+    restSeconds: getPreferredExerciseRestSeconds(userId, exercise.id),
     previousSets: userId ? DataService.getPreviousWorkoutSets(userId, exercise.id) ?? undefined : undefined,
   }));
 }
@@ -123,10 +157,12 @@ interface DraggableExerciseProps {
   onShowHowToLog: () => void;
   onOpenReorder: () => void;
   onOpenSupersetPicker: () => void;
+  onAdjustRestTime: () => void;
   onClearSuperset: () => void;
   onRemoveExercise: () => void;
   rankResult?: ExerciseRankResult | null;
   activeInput?: InputState | null;
+  restTimersEnabled: boolean;
 }
 
 function getSetFieldValue(set: WorkoutSet, field: LoggingFieldKey) {
@@ -279,22 +315,29 @@ function SwipeSetRow({
 
   return (
     <div className="relative w-full overflow-hidden rounded-[11px]">
-      <button
-        type="button"
-        onClick={() => {
-          setDeleteRevealed(false);
-          onDeleteSet(setIndex);
-        }}
-        className="absolute inset-y-0 right-0 flex items-center justify-center rounded-r-[11px] bg-red-600 text-white transition-[width,opacity] duration-150"
+      <div
+        className="absolute inset-y-0 right-0 flex items-center justify-end overflow-hidden rounded-[11px] pr-0.5 transition-[width,opacity] duration-150"
         style={{
           width: `${revealWidth}px`,
           opacity: revealOpacity,
-          pointerEvents: deleteRevealed && !isCompleted ? 'auto' : 'none',
         }}
-        aria-label={`Delete set ${setIndex + 1}`}
+        aria-hidden={!deleteRevealed}
       >
-        <Trash2 className="h-5 w-5" />
-      </button>
+        <button
+          type="button"
+          onClick={() => {
+            setDeleteRevealed(false);
+            onDeleteSet(setIndex);
+          }}
+          className="active-set-delete-action flex h-[calc(100%-0.35rem)] w-[4.25rem] items-center justify-center rounded-xl text-white shadow-[0_10px_24px_rgba(239,68,68,0.24)] transition-transform duration-150 active:scale-95"
+          style={{
+            pointerEvents: deleteRevealed && !isCompleted ? 'auto' : 'none',
+          }}
+          aria-label={`Delete set ${setIndex + 1}`}
+        >
+          <Trash2 className="h-5 w-5" />
+        </button>
+      </div>
       <div
         className={`active-set-grid active-set-row w-full touch-pan-y transition-transform ${
           isCompleted ? 'active-set-row-complete' : ''
@@ -341,6 +384,7 @@ function SwipeSetRow({
         ))}
         <button
           type="button"
+          data-haptic={isCompleted ? 'tiny' : canToggleCompletion ? 'strong' : 'none'}
           onClick={() => {
             if (canToggleCompletion) {
               onToggleSetCompletion(setIndex);
@@ -584,12 +628,13 @@ function DraggableExercise({
   onShowHowToLog,
   onOpenReorder,
   onOpenSupersetPicker,
+  onAdjustRestTime,
   onClearSuperset,
   onRemoveExercise,
   rankResult,
   activeInput,
+  restTimersEnabled,
 }: DraggableExerciseProps) {
-  const { weightUnit } = useSettings();
   const [setTypeSelectorOpen, setSetTypeSelectorOpen] = useState(false);
   const [selectedSetIndex, setSelectedSetIndex] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -603,9 +648,6 @@ function DraggableExercise({
   const setGridStyle = {
     gridTemplateColumns: `2rem minmax(3.9rem, 1.2fr) ${fieldGridColumns} 2rem`,
   };
-  const completedSetCount = exercise.sets.filter((set) => set.completed).length;
-  const totalVolume = getExerciseLiftedLoadVolume(exercise);
-  const hasLoadVolume = loggingFields.some((field) => field.key === 'weight') && loggingFields.some((field) => field.key === 'reps');
   const hasRankProgression = Boolean(rankResult?.eligible);
   const visibleMuscles = exercise.mainMuscles.slice(0, 3);
   const hiddenMuscleCount = Math.max(0, exercise.mainMuscles.length - visibleMuscles.length);
@@ -689,10 +731,6 @@ function DraggableExercise({
         </div>
 
         <div className="flex shrink-0 items-start gap-2">
-          <div className="hidden rounded-lg border border-white/10 bg-white/[0.035] px-2.5 py-1.5 text-right sm:block">
-            <div className="text-xs font-medium text-white">{completedSetCount}/{exercise.sets.length}</div>
-            <div className="text-[10px] uppercase tracking-normal text-zinc-500">sets</div>
-          </div>
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
@@ -759,6 +797,19 @@ function DraggableExercise({
                   Remove Superset
                 </button>
               )}
+              {restTimersEnabled && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onAdjustRestTime();
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-zinc-100 transition-colors hover:bg-white/[0.06]"
+                >
+                  <Clock className="h-4 w-4 text-blue-300" />
+                  Adjust Rest Time
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -785,16 +836,6 @@ function DraggableExercise({
           </>
         )}
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-lg border border-white/10 bg-black/15 px-2.5 py-2 sm:px-3">
-            <div className="text-[10px] uppercase tracking-normal text-zinc-500">Done</div>
-            <div className="stat-number text-sm">{completedSetCount}/{exercise.sets.length}</div>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/15 px-2.5 py-2 sm:px-3">
-            <div className="text-[10px] uppercase tracking-normal text-zinc-500">{hasLoadVolume ? 'Volume' : 'Format'}</div>
-            <div className="stat-number truncate text-sm">{hasLoadVolume ? `${Math.round(totalVolume).toLocaleString()} ${weightUnit}` : logging.label}</div>
-          </div>
-        </div>
       </div>
 
       {/* Sets Table - Always Visible */}
@@ -885,7 +926,7 @@ function DraggableExercise({
 function ActiveWorkoutPageContent() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { weightIncrement, weightUnit } = useSettings();
+  const { weightIncrement, weightUnit, restTimers } = useSettings();
   const { user } = useAuth();
   const {
     minimizeWorkout,
@@ -896,6 +937,8 @@ function ActiveWorkoutPageContent() {
     workoutSheetOffset,
     isWorkoutSheetOffsetDragging,
     setWorkoutSheetOffset,
+    activeRestTimer,
+    setActiveRestTimer,
   } = useWorkout();
   
   const shouldAnimateOpenFromMinimized = useMemo(() => readOpenFromMinimizedFlag(), []);
@@ -905,7 +948,7 @@ function ActiveWorkoutPageContent() {
 
   const [workoutExercises, setWorkoutExercises] = useState<ExerciseLog[]>(() => {
     if (contextExercises.length > 0) {
-      return contextExercises;
+      return contextExercises.map((exerciseLog) => withPreferredRestSeconds(exerciseLog, user?.id));
     }
     return [];
   });
@@ -924,6 +967,9 @@ function ActiveWorkoutPageContent() {
   const [infoModalTitle, setInfoModalTitle] = useState('');
   const [selectedExerciseForHelp, setSelectedExerciseForHelp] = useState<string | null>(null);
   const [selectedExerciseForSuperset, setSelectedExerciseForSuperset] = useState<string | null>(null);
+  const [selectedExerciseForRest, setSelectedExerciseForRest] = useState<string | null>(null);
+  const [restNow, setRestNow] = useState(() => Date.now());
+  const [restPanelOpen, setRestPanelOpen] = useState(false);
   const [sheetDragOffset, setSheetDragOffset] = useState(initialSheetDragOffset);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const [isSheetClosing, setIsSheetClosing] = useState(false);
@@ -939,6 +985,44 @@ function ActiveWorkoutPageContent() {
   useEffect(() => {
     updateWorkoutExercises(workoutExercises);
   }, [workoutExercises]);
+
+  useEffect(() => {
+    if (!activeRestTimer) return;
+
+    setRestNow(Date.now());
+    const interval = window.setInterval(() => {
+      setRestNow(Date.now());
+    }, 250);
+
+    return () => window.clearInterval(interval);
+  }, [activeRestTimer]);
+
+  useEffect(() => {
+    if (!activeRestTimer) return;
+
+    const remainingSeconds = Math.max(0, Math.ceil((activeRestTimer.endsAt - restNow) / 1000));
+    if (remainingSeconds > 0 || activeRestTimer.completedNotified) return;
+
+    triggerHaptic('success', { force: true });
+    setRestPanelOpen(false);
+    setActiveRestTimer((timer) => (timer && timer.endsAt === activeRestTimer.endsAt ? null : timer));
+  }, [activeRestTimer, restNow, setActiveRestTimer]);
+
+  useEffect(() => {
+    if (restTimers) return;
+
+    setActiveRestTimer(null);
+    setRestPanelOpen(false);
+    setSelectedExerciseForRest(null);
+  }, [restTimers]);
+
+  useEffect(() => {
+    if (!activeRestTimer) return;
+    if (workoutExercises.some((exercise) => exercise.exerciseId === activeRestTimer.exerciseId)) return;
+
+    setActiveRestTimer(null);
+    setRestPanelOpen(false);
+  }, [activeRestTimer, workoutExercises]);
 
   const toggleExtras = (exerciseId: string) => {
     setExpandedExtras(prev => {
@@ -999,6 +1083,65 @@ function ActiveWorkoutPageContent() {
     setInputState({ ...inputState, value });
   };
 
+  const startRestTimer = (exercise: ExerciseLog) => {
+    if (!restTimers) return;
+
+    const durationSeconds = getExerciseLogRestSeconds(exercise);
+    const now = Date.now();
+    setRestNow(now);
+    setActiveRestTimer({
+      exerciseId: exercise.exerciseId,
+      exerciseName: exercise.exerciseName,
+      durationSeconds,
+      endsAt: now + durationSeconds * 1000,
+      completedNotified: false,
+    });
+    setRestPanelOpen(false);
+  };
+
+  const adjustActiveRestTimer = (deltaSeconds: number) => {
+    setActiveRestTimer((timer) => {
+      if (!timer) return timer;
+
+      const now = Date.now();
+      const remainingSeconds = Math.max(0, Math.ceil((timer.endsAt - now) / 1000));
+      const nextRemainingSeconds = Math.max(0, Math.min(MAX_REST_SECONDS, remainingSeconds + deltaSeconds));
+      setRestNow(now);
+
+      return {
+        ...timer,
+        durationSeconds: clampRestSeconds(timer.durationSeconds + deltaSeconds),
+        endsAt: now + nextRemainingSeconds * 1000,
+        completedNotified: nextRemainingSeconds <= 0,
+      };
+    });
+  };
+
+  const skipRestTimer = () => {
+    setActiveRestTimer(null);
+    setRestPanelOpen(false);
+  };
+
+  const adjustExerciseRestTime = (exerciseId: string, deltaSeconds: number) => {
+    const currentExercise = workoutExercises.find((exercise) => exercise.exerciseId === exerciseId);
+    const nextRestSeconds = clampRestSeconds(getExerciseLogRestSeconds(currentExercise ?? {}) + deltaSeconds);
+
+    if (user) {
+      DataService.updateExerciseRestSeconds(user.id, exerciseId, nextRestSeconds);
+    }
+
+    setWorkoutExercises((prev) =>
+      prev.map((exercise) =>
+        exercise.exerciseId === exerciseId
+          ? {
+              ...exercise,
+              restSeconds: nextRestSeconds,
+            }
+          : exercise,
+      ),
+    );
+  };
+
   const toggleSetCompletion = (exerciseId: string, setIndex: number) => {
     const exercise = workoutExercises.find(ex => ex.exerciseId === exerciseId);
     const set = exercise?.sets[setIndex];
@@ -1011,6 +1154,7 @@ function ActiveWorkoutPageContent() {
       }
 
       closeInput();
+      startRestTimer(exercise);
     }
     
     setWorkoutExercises((prev) =>
@@ -1120,6 +1264,7 @@ function ActiveWorkoutPageContent() {
       exerciseName: exercise.name,
       mainMuscles: exercise.mainMuscles,
       sets: [],
+      restSeconds: getPreferredExerciseRestSeconds(user?.id, exercise.id),
       previousSets: previousSets || undefined,
     };
     setWorkoutExercises((prev) => [...prev, newExerciseLog]);
@@ -1165,6 +1310,7 @@ function ActiveWorkoutPageContent() {
                 mainMuscles: newExercise.mainMuscles,
                 sets: [],
                 supersetGroupId: oldExercise.supersetGroupId,
+                restSeconds: getPreferredExerciseRestSeconds(user?.id, newExercise.id),
                 previousSets: user ? DataService.getPreviousWorkoutSets(user.id, newExercise.id) ?? undefined : undefined,
               }
             : ex
@@ -1424,12 +1570,6 @@ function ActiveWorkoutPageContent() {
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const totalSetCount = workoutExercises.reduce((total, exercise) => total + exercise.sets.length, 0);
-  const completedSetCount = workoutExercises.reduce(
-    (total, exercise) => total + exercise.sets.filter((set) => set.completed).length,
-    0,
-  );
-  const totalVolume = getWorkoutLiftedLoadVolume({ exercises: workoutExercises });
   const inputExercise = inputState ? workoutExercises.find((exercise) => exercise.exerciseId === inputState.exerciseId) : null;
   const inputExerciseData = inputExercise ? exercises.find((exercise) => exercise.id === inputExercise.exerciseId) : null;
   const inputField = inputState
@@ -1474,11 +1614,11 @@ function ActiveWorkoutPageContent() {
 
     workoutExercises.forEach((exerciseLog) => {
       const exerciseData = exercises.find((item) => item.id === exerciseLog.exerciseId);
-      results.set(exerciseLog.exerciseId, getExerciseRank(exerciseData, workoutsForRank, user?.weight));
+      results.set(exerciseLog.exerciseId, getExerciseRank(exerciseData, workoutsForRank, user?.weight, user?.gender));
     });
 
     return results;
-  }, [user?.weight, workoutExercises, workoutsForRank]);
+  }, [user?.gender, user?.weight, workoutExercises, workoutsForRank]);
 
   const supersetSourceExercise = selectedExerciseForSuperset
     ? workoutExercises.find((exercise) => exercise.exerciseId === selectedExerciseForSuperset) ?? null
@@ -1486,6 +1626,17 @@ function ActiveWorkoutPageContent() {
   const supersetPartnerOptions = supersetSourceExercise
     ? workoutExercises.filter((exercise) => exercise.exerciseId !== supersetSourceExercise.exerciseId)
     : [];
+  const restRemainingSeconds = activeRestTimer
+    ? Math.max(0, Math.ceil((activeRestTimer.endsAt - restNow) / 1000))
+    : 0;
+  const restTimerActive = Boolean(restTimers && activeRestTimer && restRemainingSeconds > 0);
+  const restProgressPercent = activeRestTimer
+    ? Math.max(0, Math.min(100, 100 - (restRemainingSeconds / Math.max(1, activeRestTimer.durationSeconds)) * 100))
+    : 0;
+  const restStatusLabel = formatRestTimer(restRemainingSeconds);
+  const selectedRestExercise = selectedExerciseForRest
+    ? workoutExercises.find((exercise) => exercise.exerciseId === selectedExerciseForRest) ?? null
+    : null;
 
   const isSheetTranslating = sheetDragOffset > 0 || isSheetClosing || isSheetOpening;
   const collapsedOffset = getActiveWorkoutCollapsedOffset();
@@ -1549,7 +1700,7 @@ function ActiveWorkoutPageContent() {
           <WorkoutCollapsedHeader
             workoutName={workoutName}
             elapsedSeconds={elapsedSeconds}
-            exerciseCount={workoutExercises.length}
+            restRemainingSeconds={restTimerActive ? restRemainingSeconds : undefined}
           />
         </div>
         <div
@@ -1588,11 +1739,27 @@ function ActiveWorkoutPageContent() {
             </button>
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-xl font-semibold leading-tight">{workoutName}</h1>
-              <div className="mt-1 flex items-center gap-2 text-xs text-zinc-400">
+              <div className="mt-1 flex h-5 min-w-0 flex-nowrap items-center gap-2 overflow-hidden whitespace-nowrap text-xs text-zinc-400">
                 <Clock className="w-3.5 h-3.5 text-blue-300" />
                 <span className="font-mono text-zinc-200">{formatTime(elapsedSeconds)}</span>
-                <span className="text-zinc-600">-</span>
-                <span>{workoutExercises.length} exercises</span>
+                {restTimerActive && (
+                  <>
+                    <span className="text-zinc-600">-</span>
+                    <button
+                      type="button"
+                      data-no-sheet-drag="true"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setRestPanelOpen((open) => !open);
+                      }}
+                      className="flex h-5 shrink-0 items-center rounded-full border border-emerald-400/25 bg-emerald-500/12 px-2 py-0 font-mono text-[11px] font-semibold leading-none text-emerald-200 transition-colors hover:bg-emerald-500/18"
+                    >
+                      Rest {restStatusLabel}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1608,20 +1775,50 @@ function ActiveWorkoutPageContent() {
             <ArrowRight className="w-5 h-5 text-white" />
           </button>
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <div className="active-workout-stat">
-              <div className="text-[10px] uppercase tracking-normal text-zinc-500">Sets</div>
-              <div className="stat-number text-base">{completedSetCount}/{totalSetCount}</div>
+          {restTimerActive && restPanelOpen && (
+            <div
+              className="rest-timer-panel mt-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.08] p-3 shadow-[0_18px_45px_rgba(16,185,129,0.08)]"
+              data-no-sheet-drag="true"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold uppercase tracking-normal text-emerald-200/80">Rest timer</div>
+                  <div className="truncate text-sm text-zinc-300">{activeRestTimer?.exerciseName}</div>
+                </div>
+                <div className="font-mono text-2xl font-bold text-white">{restStatusLabel}</div>
+              </div>
+              <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-black/30">
+                <div
+                  className="h-full rounded-full bg-emerald-400 transition-[width] duration-300"
+                  style={{ width: `${restProgressPercent}%` }}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => adjustActiveRestTimer(REST_STEP_SECONDS)}
+                  className="premium-button premium-button-secondary min-h-10 text-sm font-semibold text-zinc-100"
+                >
+                  +15 sec
+                </button>
+                <button
+                  type="button"
+                  onClick={() => adjustActiveRestTimer(-REST_STEP_SECONDS)}
+                  className="premium-button premium-button-secondary min-h-10 text-sm font-semibold text-zinc-100"
+                >
+                  -15 sec
+                </button>
+                <button
+                  type="button"
+                  onClick={skipRestTimer}
+                  className="premium-button premium-button-danger min-h-10 text-sm font-semibold"
+                >
+                  Skip
+                </button>
+              </div>
             </div>
-            <div className="active-workout-stat">
-              <div className="text-[10px] uppercase tracking-normal text-zinc-500">Volume</div>
-              <div className="stat-number truncate text-base">{Math.round(totalVolume).toLocaleString()} {weightUnit}</div>
-            </div>
-            <div className="active-workout-stat">
-              <div className="text-[10px] uppercase tracking-normal text-zinc-500">Elapsed</div>
-              <div className="stat-number text-base font-mono">{formatTime(elapsedSeconds)}</div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -1643,10 +1840,12 @@ function ActiveWorkoutPageContent() {
             onShowHowToLog={() => showHowToLog(exercise.exerciseId)}
             onOpenReorder={() => setReorderExercisesOpen(true)}
             onOpenSupersetPicker={() => openSupersetPicker(exercise.exerciseId)}
+            onAdjustRestTime={() => setSelectedExerciseForRest(exercise.exerciseId)}
             onClearSuperset={() => clearSuperset(exercise.exerciseId)}
             onRemoveExercise={() => confirmRemoveExercise(exercise.exerciseId)}
             rankResult={rankResultsByExerciseId.get(exercise.exerciseId)}
             activeInput={inputState}
+            restTimersEnabled={restTimers}
           />
         ))}
 
@@ -1689,6 +1888,51 @@ function ActiveWorkoutPageContent() {
           onSave={handleSaveReorder}
         />
       )}
+
+      {/* Rest Time Dialog */}
+      <Dialog
+        open={Boolean(selectedExerciseForRest)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedExerciseForRest(null);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Adjust Rest Time</DialogTitle>
+            <DialogDescription>
+              {selectedRestExercise
+                ? `Set the default rest countdown after ${selectedRestExercise.exerciseName}.`
+                : 'Set the default rest countdown for this exercise.'}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRestExercise && (
+            <div className="mt-4 space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-5 text-center">
+                <div className="text-xs font-semibold uppercase tracking-normal text-zinc-500">Default rest</div>
+                <div className="mt-2 font-mono text-4xl font-bold text-white">
+                  {formatRestTimer(getExerciseLogRestSeconds(selectedRestExercise))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => adjustExerciseRestTime(selectedRestExercise.exerciseId, -REST_STEP_SECONDS)}
+                  className="premium-button premium-button-secondary min-h-12 text-sm font-semibold text-zinc-100"
+                >
+                  -15 sec
+                </button>
+                <button
+                  type="button"
+                  onClick={() => adjustExerciseRestTime(selectedRestExercise.exerciseId, REST_STEP_SECONDS)}
+                  className="premium-button premium-button-primary min-h-12 text-sm font-semibold"
+                >
+                  +15 sec
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Superset Picker Dialog */}
       <Dialog
@@ -1927,6 +2171,15 @@ export function ActiveWorkoutPage() {
     }
 
     if (startingExercises.length > 0) {
+      if (isWorkoutActive) {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem('strive_open_workout_from_minimized', '1');
+        }
+        expandWorkout();
+        navigate('/', { replace: true, state: {} });
+        return;
+      }
+
       startWorkout(
         routeState.workoutName || 'Active Workout',
         createExerciseLogsForWorkout(startingExercises, user?.id),

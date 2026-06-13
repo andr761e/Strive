@@ -4,13 +4,21 @@ import { type Exercise, type ExerciseLog } from '../data/mockData';
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { DataService } from '../services/db';
+import { useWorkout } from '../contexts/WorkoutContext';
 
 export function WorkoutTemplateSelectionPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isWorkoutActive, expandWorkout } = useWorkout();
   const workoutTemplates = user ? DataService.getRoutinesByUserId(user.id) : [];
 
   const selectTemplate = (templateId: string) => {
+    if (isWorkoutActive) {
+      expandWorkout();
+      navigate('/');
+      return;
+    }
+
     if (!user) return;
     const template = workoutTemplates.find(t => t.id === templateId);
     if (template) {
@@ -61,6 +69,12 @@ export function WorkoutTemplateSelectionPage() {
   };
 
   const createNewWorkout = () => {
+    if (isWorkoutActive) {
+      expandWorkout();
+      navigate('/');
+      return;
+    }
+
     navigate('/exercise-selection');
   };
 

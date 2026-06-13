@@ -4,10 +4,12 @@ import { Dumbbell, TrendingUp, Calendar, AlertTriangle, Info, Flame, Zap, Plus, 
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { DataService } from '../services/db';
+import { useWorkout } from '../contexts/WorkoutContext';
 
 export function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isWorkoutActive, expandWorkout } = useWorkout();
 
   const dashboard = useMemo(() => {
     if (!user) return null;
@@ -42,10 +44,18 @@ export function HomePage() {
   }
 
   const startWorkout = () => {
+    if (isWorkoutActive) {
+      expandWorkout();
+      return;
+    }
     navigate('/workout-template-selection');
   };
 
   const quickStartWorkout = () => {
+    if (isWorkoutActive) {
+      expandWorkout();
+      return;
+    }
     navigate('/exercise-selection');
   };
 

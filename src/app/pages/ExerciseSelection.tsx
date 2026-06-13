@@ -3,10 +3,12 @@ import { useNavigate, useLocation } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 import { exercises, type Exercise } from '../data/mockData';
 import { ExerciseFilterPicker } from '../components/ExerciseFilterPicker';
+import { useWorkout } from '../contexts/WorkoutContext';
 
 export function ExerciseSelectionPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isWorkoutActive, expandWorkout } = useWorkout();
   const template = (location.state as any)?.template;
   const fromActiveWorkout = (location.state as any)?.fromActiveWorkout;
   const fromEditRoutine = (location.state as any)?.fromEditRoutine;
@@ -53,6 +55,12 @@ export function ExerciseSelectionPage() {
           } 
         });
       } else {
+        if (isWorkoutActive) {
+          expandWorkout();
+          navigate('/');
+          return;
+        }
+
         // Start new workout
         navigate('/active-workout', { state: { exercises: selectedExercises } });
       }
