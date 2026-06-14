@@ -1,12 +1,14 @@
-import { useState, type CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Check, ChevronRight, Copy, Mail, MessageSquare, Palette, RotateCcw, Save, Send, ShieldAlert, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Copy, Download, FileJson, HardDrive, Mail, MessageSquare, Palette, RotateCcw, Save, Send, ShieldAlert, Trash2, Upload } from 'lucide-react';
 import { appThemes, useSettings } from '../contexts/SettingsContext';
 import { Switch } from '../components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkout } from '../contexts/WorkoutContext';
 import { DataService } from '../services/db';
+import { exportStriveBackup, importStriveBackup, readStriveBackupFile, type BackupPreview } from '../services/backup';
 import { cancelPostWorkoutReminders } from '../services/notifications';
 
 const SUPPORT_EMAIL = 'andr761e@gmail.com';
@@ -16,7 +18,9 @@ const DELETE_CONFIRMATION = 'DELETE';
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const { user, updateUser, logout } = useAuth();
+  const { user, updateUser, deleteProfile } = useAuth();
+  const { isWorkoutActive } = useWorkout();
+  const backupInputRef = useRef<HTMLInputElement | null>(null);
   const {
     weightUnit,
     weightIncrement,
@@ -37,8 +41,10 @@ export function SettingsPage() {
   const [editStatsOpen, setEditStatsOpen] = useState(false);
   const [bodyWeight, setBodyWeight] = useState((user?.weight ?? 72).toString());
   const [height, setHeight] = useState((user?.height ?? 170).toString());
+  const [profileUsername, setProfileUsername] = useState(user?.username ?? '');
   const [experience, setExperience] = useState(user?.experience ?? 'Intermediate');
   const [goal, setGoal] = useState(user?.goal ?? 'General Fitness');
+  const [profileEditError, setProfileEditError] = useState('');
   const [contactOpen, setContactOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState(feedbackTypes[0]);
   const [feedbackMessage, setFeedbackMessage] = useState('');
@@ -49,23 +55,32 @@ export function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [accountActionStatus, setAccountActionStatus] = useState('');
   const [accountActionError, setAccountActionError] = useState('');
+  const [backupStatus, setBackupStatus] = useState('');
+  const [backupError, setBackupError] = useState('');
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [pendingImport, setPendingImport] = useState<BackupPreview | null>(null);
 
   const experienceLevels = ['Beginner', 'Intermediate', 'Advanced', 'Elite'];
   const goals = ['Strength', 'Hypertrophy', 'Endurance', 'General Fitness', 'Weight Loss'];
 
   const saveProfileStats = () => {
-    updateUser({
-      weight: Number(bodyWeight) || user?.weight,
-      height: Number(height) || user?.height,
-      experience,
-      goal,
-    });
-    setEditStatsOpen(false);
+    setProfileEditError('');
+    try {
+      updateUser({
+        username: profileUsername,
+        weight: Number(bodyWeight) || user?.weight,
+        height: Number(height) || user?.height,
+        experience,
+        goal,
+      });
+      setEditStatsOpen(false);
+    } catch (error) {
+      setProfileEditError(error instanceof Error ? error.message : 'Unable to update this profile.');
+    }
   };
 
   const buildFeedbackBody = () => [
-    `From: ${user?.name ?? 'Strive user'} (${user?.email ?? 'no email'})`,
-    `Username: ${user?.username ?? '-'}`,
+    `From: ${user?.username ?? 'Strive user'}`,
     `Category: ${feedbackType}`,
     '',
     feedbackMessage.trim(),
@@ -115,15 +130,75 @@ export function SettingsPage() {
     if (!user || deleteConfirmText !== DELETE_CONFIRMATION) return;
 
     setAccountActionError('');
-    try {
-      await cancelCurrentUserWorkoutReminders();
-      DataService.deleteUserProfile(user.id);
+    if (isWorkoutActive) {
       setDeleteProfileOpen(false);
       setDeleteConfirmText('');
-      logout();
-      navigate('/auth/login', { replace: true });
+      setAccountActionError('Finish or discard the active workout before deleting this profile.');
+      return;
+    }
+    try {
+      await cancelCurrentUserWorkoutReminders();
+      setDeleteProfileOpen(false);
+      setDeleteConfirmText('');
+      const nextProfile = deleteProfile();
+      navigate(nextProfile ? '/' : '/setup', { replace: true });
     } catch {
       setAccountActionError('Unable to delete this profile right now. Please try again.');
+    }
+  };
+
+  const handleExportBackup = async () => {
+    if (!user || backupBusy) return;
+    setBackupBusy(true);
+    setBackupError('');
+    setBackupStatus('');
+
+    try {
+      const result = await exportStriveBackup(user.id);
+      setBackupStatus(
+        result.method === 'shared'
+          ? `${result.fileName} is ready to save or share.`
+          : `${result.fileName} was downloaded.`,
+      );
+    } catch {
+      setBackupError('The backup could not be exported. Please try again.');
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleBackupFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setBackupError('');
+    setBackupStatus('');
+    try {
+      setPendingImport(await readStriveBackupFile(file));
+    } catch (error) {
+      setBackupError(error instanceof Error ? error.message : 'The selected backup could not be read.');
+    }
+  };
+
+  const handleImportBackup = async () => {
+    if (!user || !pendingImport || backupBusy) return;
+    if (isWorkoutActive) {
+      setPendingImport(null);
+      setBackupError('Finish or discard the active workout before importing a backup.');
+      return;
+    }
+
+    setBackupBusy(true);
+    setBackupError('');
+    try {
+      await cancelCurrentUserWorkoutReminders();
+      await importStriveBackup(pendingImport.backup, user.id);
+      window.location.replace('/');
+    } catch (error) {
+      setBackupError(error instanceof Error ? error.message : 'The backup could not be imported.');
+      setPendingImport(null);
+      setBackupBusy(false);
     }
   };
 
@@ -278,17 +353,91 @@ export function SettingsPage() {
       </div>
 
       <div className="px-4 py-4">
-        <h2 className="section-label mb-3">Account</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="section-label">Data & Backup</h2>
+          <span className="premium-badge px-2.5 py-1 text-[11px]">Local profile</span>
+        </div>
         <div className="premium-card overflow-hidden">
-          <div className="w-full p-4 flex items-center justify-between border-b border-white/10">
-            <span className="text-white">Email</span>
-            <span className="text-sm text-zinc-400">{user.email}</span>
+          <div className="flex items-start gap-3 p-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 text-blue-300">
+              <HardDrive className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="mb-1 text-white">On-device profile</div>
+              <p className="text-xs leading-relaxed text-zinc-400">
+                Your profile, routines, workouts, and progress are stored locally on this device. No Strive account or sign-in is required.
+              </p>
+            </div>
           </div>
-          <div className="w-full p-4 flex items-center justify-between">
-            <span className="text-white">Username</span>
-            <span className="text-sm text-zinc-400">{user.username}</span>
+
+          <div className="border-t border-white/10">
+            <button
+              type="button"
+              onClick={handleExportBackup}
+              disabled={backupBusy}
+              className="flex min-h-16 w-full items-center justify-between gap-3 border-b border-white/10 p-4 text-left transition-colors hover:bg-white/[0.035] disabled:opacity-50"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-500/15 text-green-300">
+                  <Download className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="mb-1 text-white">Export Backup</div>
+                  <div className="text-xs text-zinc-400">Save or share a portable Strive JSON file</div>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setBackupError('');
+                setBackupStatus('');
+                if (isWorkoutActive) {
+                  setBackupError('Finish or discard the active workout before importing a backup.');
+                  return;
+                }
+                backupInputRef.current?.click();
+              }}
+              disabled={backupBusy}
+              className="flex min-h-16 w-full items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-white/[0.035] disabled:opacity-50"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 text-blue-300">
+                  <Upload className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="mb-1 text-white">Import Backup</div>
+                  <div className="text-xs text-zinc-400">Restore data from this or another device</div>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" />
+            </button>
           </div>
         </div>
+
+        <input
+          ref={backupInputRef}
+          type="file"
+          accept="application/json,.json"
+          onChange={handleBackupFileSelected}
+          className="hidden"
+        />
+
+        {backupStatus && (
+          <div className="mt-3 rounded-xl border border-green-400/20 bg-green-500/10 px-3 py-2 text-sm text-green-300">
+            {backupStatus}
+          </div>
+        )}
+        {backupError && (
+          <div className="mt-3 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            {backupError}
+          </div>
+        )}
+        <p className="mt-3 text-xs leading-relaxed text-zinc-500">
+          Keep exported backups somewhere outside Strive. Uninstalling the app can remove its local data.
+        </p>
       </div>
 
       <div className="px-4 py-4">
@@ -387,11 +536,27 @@ export function SettingsPage() {
         </div>
       </div>
 
-      <Dialog open={editStatsOpen} onOpenChange={setEditStatsOpen}>
+      <Dialog
+        open={editStatsOpen}
+        onOpenChange={(open) => {
+          setEditStatsOpen(open);
+          setProfileEditError('');
+          if (open) setProfileUsername(user.username);
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Profile Stats</DialogTitle>
           </DialogHeader>
+          <label className="flex flex-col gap-2 text-sm text-zinc-400">
+            Username
+            <input
+              value={profileUsername}
+              onChange={(event) => setProfileUsername(event.target.value)}
+              className="premium-input p-3 text-white"
+              autoComplete="username"
+            />
+          </label>
           <div className="grid grid-cols-2 gap-4">
             <label className="flex flex-col gap-2 text-sm text-zinc-400">
               Body Weight
@@ -440,6 +605,11 @@ export function SettingsPage() {
               </select>
             </label>
           </div>
+          {profileEditError && (
+            <div className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {profileEditError}
+            </div>
+          )}
           <button
             onClick={saveProfileStats}
             className="premium-button premium-button-primary w-full py-3 flex items-center justify-center gap-2 font-medium"
@@ -524,6 +694,59 @@ export function SettingsPage() {
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={Boolean(pendingImport)} onOpenChange={(open) => !open && setPendingImport(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <FileJson className="h-5 w-5 text-blue-300" />
+              Restore this backup?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Importing replaces the current local profile and all data attached to it. Strive will save an internal safety snapshot first.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {pendingImport && (
+            <div className="premium-row space-y-3 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-zinc-400">Profile</span>
+                <span className="truncate font-medium text-white">{pendingImport.profileName}</span>
+              </div>
+              <div className="h-px bg-white/10" />
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-zinc-400">Backup date</span>
+                <span className="text-sm text-white">{new Date(pendingImport.exportedAt).toLocaleString()}</span>
+              </div>
+              <div className="h-px bg-white/10" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="stat-number text-xl">{pendingImport.workoutCount}</div>
+                  <div className="text-xs text-zinc-400">Workouts</div>
+                </div>
+                <div>
+                  <div className="stat-number text-xl">{pendingImport.routineCount}</div>
+                  <div className="text-xs text-zinc-400">Routines</div>
+                </div>
+              </div>
+              <div className="truncate text-xs text-zinc-500">{pendingImport.fileName}</div>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel className="premium-button premium-button-secondary border-white/10 text-white">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleImportBackup}
+              disabled={backupBusy}
+              className="premium-button premium-button-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Import & Replace
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog
         open={resetDataOpen}
         onOpenChange={(open) => {
@@ -583,7 +806,7 @@ export function SettingsPage() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               This permanently removes this local profile, workouts, routines, progress data, profile photo, and scheduled
-              workout reminders from this device. You will be returned to the login screen.
+              workout reminders from this device. You will be returned to the profile setup screen.
             </AlertDialogDescription>
           </AlertDialogHeader>
 

@@ -35,7 +35,7 @@ function ProtectedLayout() {
   }
 
   if (!user) {
-    return <Navigate to="/auth/login" replace />;
+    return <Navigate to="/setup" replace />;
   }
 
   return (
@@ -79,13 +79,13 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: '/auth',
+    path: '/setup',
     Component: AuthLayout,
     children: [
-      { index: true, element: <Navigate to="/auth/login" replace /> },
-      { path: 'login', lazy: lazyPage(() => import('./pages/Login'), 'LoginPage') },
-      { path: 'signup', lazy: lazyPage(() => import('./pages/Signup'), 'SignupPage') },
+      { index: true, lazy: lazyPage(() => import('./pages/Setup'), 'SetupPage') },
+      { path: 'new', lazy: lazyPage(() => import('./pages/Setup'), 'SetupPage') },
     ],
   },
+  { path: '/auth/*', element: <Navigate to="/setup" replace /> },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);

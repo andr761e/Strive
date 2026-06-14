@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router';
 import { ArrowLeft, Plus, X, ChevronDown, ChevronUp, Trash2, Save, Lightbulb, Check } from 'lucide-react';
 import { exercises, type Exercise, type MuscleGroup, type SetType } from '../data/mockData';
 import { ExerciseThumbnail } from '../components/ExerciseThumbnail';
-import { SetTypeSelector } from '../components/SetTypeSelector';
+import { SetTypeSelector, getSetTypeStyles } from '../components/SetTypeSelector';
 import { BottomInputPanel } from '../components/BottomInputPanel';
 import { useSettings } from '../contexts/SettingsContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
@@ -152,12 +152,17 @@ function DraggableTemplateExercise({
               </thead>
               <tbody>
                 {exercise.sets.map((set, idx) => {
+                  const setType = set.type || 'normal';
+                  const setTypeClass = setType === 'normal'
+                    ? 'workout-field hover:border-white/20'
+                    : `${getSetTypeStyles(setType).compact} hover:brightness-110`;
+
                   return (
                     <tr key={idx} className="border-b border-white/10">
                       <td className="py-3 px-2">
                         <button
                           onClick={() => handleSetTypeClick(idx)}
-                          className="workout-field w-8 h-8 flex items-center justify-center text-sm font-bold hover:border-white/20"
+                          className={`${setTypeClass} w-8 h-8 flex items-center justify-center rounded-[9px] text-sm font-bold`}
                         >
                           {getSetTypeLabel(idx)}
                         </button>

@@ -6,35 +6,35 @@ export function getSetTypeStyles(type: SetType) {
   switch (type) {
     case 'warmup':
       return {
-        selectedCard: 'bg-amber-500/14 border-amber-400/40 text-white',
-        selectedIcon: 'bg-amber-500/25 text-amber-100',
-        selectedDescription: 'text-amber-100',
-        dot: 'bg-amber-300',
-        compact: 'border-amber-400/35 bg-amber-500/14 text-amber-200',
+        selectedCard: 'set-type-option set-type-warmup',
+        selectedIcon: 'set-type-icon',
+        selectedDescription: 'set-type-description',
+        dot: 'set-type-dot',
+        compact: 'set-type-compact set-type-warmup',
       };
     case 'drop':
       return {
-        selectedCard: 'bg-violet-500/14 border-violet-400/40 text-white',
-        selectedIcon: 'bg-violet-500/25 text-violet-100',
-        selectedDescription: 'text-violet-100',
-        dot: 'bg-violet-300',
-        compact: 'border-violet-400/35 bg-violet-500/14 text-violet-200',
+        selectedCard: 'set-type-option set-type-drop',
+        selectedIcon: 'set-type-icon',
+        selectedDescription: 'set-type-description',
+        dot: 'set-type-dot',
+        compact: 'set-type-compact set-type-drop',
       };
     case 'failure':
       return {
-        selectedCard: 'bg-red-500/14 border-red-400/40 text-white',
-        selectedIcon: 'bg-red-500/25 text-red-100',
-        selectedDescription: 'text-red-100',
-        dot: 'bg-red-300',
-        compact: 'border-red-400/35 bg-red-500/14 text-red-200',
+        selectedCard: 'set-type-option set-type-failure',
+        selectedIcon: 'set-type-icon',
+        selectedDescription: 'set-type-description',
+        dot: 'set-type-dot',
+        compact: 'set-type-compact set-type-failure',
       };
     default:
       return {
-        selectedCard: 'bg-blue-500/15 border-blue-400/40 text-white',
-        selectedIcon: 'bg-blue-500/25 text-blue-100',
-        selectedDescription: 'text-blue-100',
-        dot: 'bg-white',
-        compact: 'border-white/10 bg-white/5 text-zinc-300',
+        selectedCard: 'set-type-option set-type-normal',
+        selectedIcon: 'set-type-icon',
+        selectedDescription: 'set-type-description',
+        dot: 'set-type-dot',
+        compact: 'set-type-compact',
       };
   }
 }
@@ -85,11 +85,11 @@ export function SetTypeSelector({
                 className={`w-full p-4 rounded-xl text-left transition-colors flex items-start gap-3 border ${
                   isSelected
                     ? styles.selectedCard
-                    : 'bg-white/[0.035] hover:bg-white/[0.06] border-white/10 text-white'
+                    : 'set-type-option-unselected'
                 }`}
               >
                 <div className={`w-8 h-8 rounded flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                  isSelected ? styles.selectedIcon : 'bg-black/20 text-zinc-300'
+                  isSelected ? styles.selectedIcon : 'set-type-icon-unselected'
                 }`}>
                   {setType.icon}
                 </div>

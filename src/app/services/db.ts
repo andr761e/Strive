@@ -1,4 +1,3 @@
-import { seedDatabase } from '../../../db/seed';
 import {
   exercises,
   type Exercise,
@@ -6,13 +5,16 @@ import {
   type MuscleGroup,
   type SetType,
 } from '../data/mockData';
-import { isStrongPassword, isValidEmail, isValidUsername } from '../utils/authValidation';
 import { getExerciseLiftedLoadVolume, getWorkoutLiftedLoadVolume } from '../utils/workoutVolume';
 
 const STORAGE_KEY = 'strive_app_database_v2';
 const LEGACY_STORAGE_KEY = 'strive_app_database_v1';
 const SESSION_KEY = 'strive_app_session_user';
 const ALEX_SEED_USER_ID = '6fcb7a80-f6e7-4e4e-88da-15d4b9bcf502';
+const REMOVED_DEMO_USER_IDS = new Set([
+  'f4e3d2b1-c5a9-4197-96ee-54d5f8c7fb01',
+  'e7c17cf9-46bb-4ef2-9324-d204d8d92c73',
+]);
 
 const DEFAULT_TRACKED_EXERCISE_IDS = ['1', '13', '7'];
 const DEFAULT_PERSONAL_RECORD_EXERCISE_IDS = ['1', '13', '7', '18'];
@@ -101,11 +103,9 @@ export interface DBUser {
   id: string;
   name: string;
   username: string;
-  email: string;
   birthday: string;
   gender: string;
   dateJoined: string;
-  password: string;
   height: number;
   weight: number;
   experience: string;
@@ -161,6 +161,14 @@ export interface ExerciseRestPreference {
   updatedAt: string;
 }
 
+export interface LocalProfileBackupData {
+  profile: DBUser;
+  workouts: WorkoutRecord[];
+  routines: WorkoutRoutine[];
+  progressPreference: ProgressPreference;
+  exerciseRestPreferences: ExerciseRestPreference[];
+}
+
 export interface CurrentGoalPreference {
   exerciseId: string;
   targetWeight: number;
@@ -197,6 +205,16 @@ interface LocalDb {
   exerciseRestPreferences: ExerciseRestPreference[];
 }
 
+function createEmptyDatabase(): LocalDb {
+  return {
+    users: [],
+    workouts: [],
+    routines: [],
+    progressPreferences: [],
+    exerciseRestPreferences: [],
+  };
+}
+
 interface SaveWorkoutInput {
   workoutName: string;
   durationSeconds: number;
@@ -225,6 +243,40 @@ function createId(prefix: string) {
     return crypto.randomUUID();
   }
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function normalizeUsername(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_+/g, '_')
+    .slice(0, 24);
+}
+
+function createUniqueUsername(value: string, usedUsernames: Set<string>) {
+  const normalized = normalizeUsername(value);
+  const base = normalized.length >= 2 ? normalized : 'strive_user';
+  let candidate = base;
+  let suffix = 2;
+
+  while (usedUsernames.has(candidate.toLowerCase())) {
+    const suffixText = `_${suffix}`;
+    candidate = `${base.slice(0, 24 - suffixText.length)}${suffixText}`;
+    suffix += 1;
+  }
+
+  usedUsernames.add(candidate.toLowerCase());
+  return candidate;
 }
 
 function normalizeDate(value: string | Date) {
@@ -552,21 +604,31 @@ function normalizeExerciseRestPreferences(
 }
 
 function normalizeDatabase(input: Partial<LocalDb> | null | undefined) {
-  const rawUsers = (Array.isArray(input?.users) ? input.users : seedDatabase.users) as Array<Partial<DBUser>>;
-  const users = rawUsers.map((user) => ({
-    ...user,
-    gender: normalizeProfileGender(user.gender) ?? 'Male',
-  })) as DBUser[];
+  const rawUsers = ((Array.isArray(input?.users) ? input.users : []) as Array<Partial<DBUser>>)
+    .filter((user) => !user.id || !REMOVED_DEMO_USER_IDS.has(user.id));
+  const usedUsernames = new Set<string>();
+  const users = rawUsers.map((user) => {
+    // Strip credentials left by older app versions while preserving all training data.
+    const localProfile = { ...user } as Partial<DBUser> & {
+      email?: string;
+      password?: string;
+    };
+    delete localProfile.email;
+    delete localProfile.password;
+
+    const username = createUniqueUsername(localProfile.username || localProfile.name || 'strive_user', usedUsernames);
+
+    return {
+      ...localProfile,
+      name: username,
+      username,
+      gender: normalizeProfileGender(localProfile.gender) ?? 'Male',
+    };
+  }) as DBUser[];
   const userIds = new Set(users.map((user) => user.id));
-  const rawInputWorkouts = Array.isArray(input?.workouts) ? input.workouts : seedDatabase.workouts;
+  const rawInputWorkouts = Array.isArray(input?.workouts) ? input.workouts : [];
   const inputWorkouts = rawInputWorkouts.filter((workout) => !isStaleAlexSeedWorkout(workout));
-  const existingWorkoutIds = new Set(inputWorkouts.map((workout) => workout.id));
-  const workouts = [
-    ...inputWorkouts,
-    ...(!Array.isArray(input?.workouts)
-      ? seedDatabase.workouts.filter((workout) => !existingWorkoutIds.has(workout.id))
-      : []),
-  ]
+  const workouts = inputWorkouts
     .filter((workout) => userIds.has(workout.userId))
     .map((workout) => ({
       ...workout,
@@ -608,13 +670,13 @@ function readDatabase(): LocalDb {
 
   const storage = getStorage();
   if (!storage) {
-    cachedDatabase = normalizeDatabase(seedDatabase);
+    cachedDatabase = createEmptyDatabase();
     return cachedDatabase;
   }
 
   const raw = storage.getItem(STORAGE_KEY) ?? storage.getItem(LEGACY_STORAGE_KEY);
   if (!raw) {
-    const database = normalizeDatabase(seedDatabase);
+    const database = createEmptyDatabase();
     cachedDatabase = database;
     storage.setItem(STORAGE_KEY, JSON.stringify(database));
     return database;
@@ -626,7 +688,7 @@ function readDatabase(): LocalDb {
     storage.setItem(STORAGE_KEY, JSON.stringify(database));
     return database;
   } catch {
-    const database = normalizeDatabase(seedDatabase);
+    const database = createEmptyDatabase();
     cachedDatabase = database;
     storage.setItem(STORAGE_KEY, JSON.stringify(database));
     return database;
@@ -926,14 +988,105 @@ export const DataService = {
     return getDb().users;
   },
 
-  getUserByUsername(username: string) {
-    const users = getDb().users;
-    return users.find((user) => user.username.toLowerCase() === username.toLowerCase()) || null;
+  createProfileBackup(userId: string): LocalProfileBackupData {
+    const db = getDb();
+    const profile = db.users.find((user) => user.id === userId);
+    if (!profile) {
+      throw new Error('The local profile could not be found.');
+    }
+
+    return cloneJson({
+      profile,
+      workouts: db.workouts.filter((workout) => workout.userId === userId),
+      routines: db.routines.filter((routine) => routine.userId === userId),
+      progressPreference: normalizePreference(
+        db.progressPreferences.find((preference) => preference.userId === userId),
+        userId,
+      ),
+      exerciseRestPreferences: db.exerciseRestPreferences.filter((preference) => preference.userId === userId),
+    });
   },
 
-  getUserByEmail(email: string) {
-    const users = getDb().users;
-    return users.find((user) => user.email.toLowerCase() === email.toLowerCase()) || null;
+  restoreProfileBackup(value: unknown, targetUserId?: string) {
+    if (!isRecord(value) || !isRecord(value.profile)) {
+      throw new Error('This backup does not contain a valid Strive profile.');
+    }
+    if (
+      !Array.isArray(value.workouts) ||
+      !Array.isArray(value.routines) ||
+      !Array.isArray(value.exerciseRestPreferences) ||
+      !isRecord(value.progressPreference)
+    ) {
+      throw new Error('This backup is incomplete or damaged.');
+    }
+
+    const profile = value.profile as unknown as DBUser;
+    if (
+      typeof profile.id !== 'string' ||
+      !profile.id ||
+      (typeof profile.username !== 'string' && typeof profile.name !== 'string') ||
+      typeof profile.birthday !== 'string' ||
+      !normalizeProfileGender(profile.gender)
+    ) {
+      throw new Error('The profile information in this backup is invalid.');
+    }
+
+    const workoutsAreValid = value.workouts.every(
+      (workout) =>
+        isRecord(workout) &&
+        typeof workout.id === 'string' &&
+        typeof workout.date === 'string' &&
+        Array.isArray(workout.exercises) &&
+        workout.exercises.every(
+          (exercise) => isRecord(exercise) && Array.isArray(exercise.sets),
+        ),
+    );
+    const routinesAreValid = value.routines.every(
+      (routine) =>
+        isRecord(routine) &&
+        typeof routine.id === 'string' &&
+        typeof routine.name === 'string' &&
+        Array.isArray(routine.exercises),
+    );
+
+    if (!workoutsAreValid || !routinesAreValid) {
+      throw new Error('Some workouts or routines in this backup are invalid.');
+    }
+
+    const db = getDb();
+    const restoredUserId = targetUserId ?? profile.id;
+    const otherProfiles = db.users.filter((user) => user.id !== restoredUserId);
+    const usedUsernames = new Set(otherProfiles.map((user) => user.username.toLowerCase()));
+    const username = createUniqueUsername(profile.username || profile.name, usedUsernames);
+    const restoredProfile = { ...profile, id: restoredUserId, name: username, username };
+
+    const candidate = normalizeDatabase({
+      users: [...otherProfiles, restoredProfile],
+      workouts: [
+        ...db.workouts.filter((workout) => workout.userId !== restoredUserId),
+        ...value.workouts.map((workout) => ({ ...workout, userId: restoredUserId })),
+      ] as WorkoutRecord[],
+      routines: [
+        ...db.routines.filter((routine) => routine.userId !== restoredUserId),
+        ...value.routines.map((routine) => ({ ...routine, userId: restoredUserId })),
+      ] as WorkoutRoutine[],
+      progressPreferences: [
+        ...db.progressPreferences.filter((preference) => preference.userId !== restoredUserId),
+        { ...value.progressPreference, userId: restoredUserId },
+      ] as ProgressPreference[],
+      exerciseRestPreferences: value.exerciseRestPreferences.map((preference) => ({
+        ...preference,
+        userId: restoredUserId,
+      })).concat(db.exerciseRestPreferences.filter((preference) => preference.userId !== restoredUserId)) as ExerciseRestPreference[],
+    });
+
+    const restoredUser = candidate.users.find((user) => user.id === restoredUserId);
+    if (!restoredUser) {
+      throw new Error('The profile in this backup could not be restored.');
+    }
+
+    writeDatabase(candidate);
+    return restoredUser;
   },
 
   getUserById(id: string) {
@@ -941,25 +1094,8 @@ export const DataService = {
     return users.find((user) => user.id === id) || null;
   },
 
-  validateCredentials(identifier: string, password: string) {
-    const normalizedIdentifier = identifier.trim().toLowerCase();
-    const users = getDb().users;
-    const user = users.find(
-      (item) =>
-        item.username.toLowerCase() === normalizedIdentifier ||
-        item.email.toLowerCase() === normalizedIdentifier,
-    );
-    if (!user || user.password !== password) {
-      return null;
-    }
-    return user;
-  },
-
-  createUser(user: {
-    name: string;
+  createLocalProfile(user: {
     username: string;
-    email: string;
-    password: string;
     birthday: string;
     gender: string;
     height?: number;
@@ -968,23 +1104,13 @@ export const DataService = {
     goal?: string;
   }) {
     const db = getDb();
-    const name = user.name.trim();
-    const username = user.username.trim();
-    const email = user.email.trim().toLowerCase();
-    const existingUsername = db.users.some((item) => item.username.toLowerCase() === username.toLowerCase());
-    const existingEmail = db.users.some((item) => item.email.toLowerCase() === email);
+    const username = normalizeUsername(user.username);
 
-    if (!name) {
-      throw new Error('Please enter your name.');
+    if (username.length < 2) {
+      throw new Error('Username must contain at least 2 letters or numbers.');
     }
-    if (!isValidUsername(username)) {
-      throw new Error('Username must be 3-20 characters and use only letters, numbers, or underscores.');
-    }
-    if (!isValidEmail(email)) {
-      throw new Error('Please enter a valid email address.');
-    }
-    if (!isStrongPassword(user.password)) {
-      throw new Error('Password does not meet the strength requirements.');
+    if (db.users.some((profile) => profile.username.toLowerCase() === username.toLowerCase())) {
+      throw new Error('That username is already used by another local profile.');
     }
     if (!user.birthday || Number.isNaN(new Date(`${user.birthday}T00:00:00`).getTime())) {
       throw new Error('Please enter a valid birthday.');
@@ -994,23 +1120,14 @@ export const DataService = {
       throw new Error('Please select male or female.');
     }
 
-    if (existingUsername) {
-      throw new Error('Username already exists. Please choose another.');
-    }
-    if (existingEmail) {
-      throw new Error('Email already exists. Please sign in instead.');
-    }
-
     const now = new Date().toISOString();
     const newUser: DBUser = {
       id: createId('user'),
-      name,
+      name: username,
       username,
-      email,
       birthday: user.birthday,
       gender,
       dateJoined: normalizeDate(now),
-      password: user.password,
       height: Math.max(100, Math.min(250, Math.round(Number(user.height) || 170))),
       weight: Math.max(30, Math.min(300, Math.round(Number(user.weight) || 72))),
       experience: user.experience || 'Intermediate',
@@ -1026,7 +1143,7 @@ export const DataService = {
     return newUser;
   },
 
-  updateUserSettings(userId: string, updates: Partial<Omit<DBUser, 'id' | 'username' | 'createdAt'>>) {
+  updateUserSettings(userId: string, updates: Partial<Omit<DBUser, 'id' | 'createdAt'>>) {
     const db = getDb();
     const userIndex = db.users.findIndex((item) => item.id === userId);
     if (userIndex < 0) return null;
@@ -1037,9 +1154,19 @@ export const DataService = {
       throw new Error('Please select male or female.');
     }
 
+    const isUpdatingUsername = updates.username !== undefined;
+    const requestedUsername = isUpdatingUsername ? normalizeUsername(updates.username ?? '') : undefined;
+    if (isUpdatingUsername && (!requestedUsername || requestedUsername.length < 2)) {
+      throw new Error('Username must contain at least 2 letters or numbers.');
+    }
+    if (requestedUsername && db.users.some((profile) => profile.id !== userId && profile.username === requestedUsername)) {
+      throw new Error('That username is already used by another local profile.');
+    }
+
     const updatedUser = {
       ...db.users[userIndex],
       ...updates,
+      ...(requestedUsername ? { username: requestedUsername, name: requestedUsername } : {}),
       ...(normalizedGender ? { gender: normalizedGender } : {}),
       updatedAt: new Date().toISOString(),
     };

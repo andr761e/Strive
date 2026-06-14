@@ -35,7 +35,7 @@ export function WorkoutCollapsedHeader({
         <div className="flex h-9 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-2.5 text-white">
           {hasRestTimer && (
             <>
-              <span className="flex h-5 items-center rounded-lg border border-emerald-400/20 bg-emerald-500/12 px-2 py-0 text-[11px] font-semibold leading-none text-emerald-200">
+              <span className="rest-timer-chip flex h-5 items-center rounded-lg px-2 py-0 text-[11px] font-semibold leading-none">
                 Rest {formatDurationClock(restRemainingSeconds)}
               </span>
               <span className="h-4 w-px bg-white/10" />

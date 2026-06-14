@@ -66,7 +66,7 @@ export function HomePage() {
     <div className="screen-shell">
       <div className="screen-header">
         <p className="text-zinc-400 text-sm">Welcome back</p>
-        <h1 className="text-3xl font-semibold leading-tight mb-1">{user.name.split(' ')[0]}</h1>
+        <h1 className="text-3xl font-semibold leading-tight mb-1">{user.username}</h1>
         <p className="text-zinc-400 text-sm">Your training log is ready when you are.</p>
       </div>
 

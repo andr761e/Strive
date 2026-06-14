@@ -64,38 +64,6 @@ export const seedUsers: SeedUser[] = [
     createdAt: '2024-05-18T09:00:00.000Z',
     updatedAt: '2026-04-01T08:00:00.000Z',
   },
-  {
-    id: 'f4e3d2b1-c5a9-4197-96ee-54d5f8c7fb01',
-    name: 'Maria Chen',
-    username: 'mariaC',
-    email: 'maria.chen@striveapp.com',
-    birthday: '1996-02-23',
-    gender: 'Female',
-    dateJoined: '2025-01-12',
-    password: 'StrongStart25$',
-    height: 168,
-    weight: 62,
-    experience: 'Intermediate',
-    goal: 'Hypertrophy',
-    createdAt: '2025-01-12T10:30:00.000Z',
-    updatedAt: '2026-04-02T12:30:00.000Z',
-  },
-  {
-    id: 'e7c17cf9-46bb-4ef2-9324-d204d8d92c73',
-    name: 'Noah Smith',
-    username: 'noah_s',
-    email: 'noah.smith@striveapp.com',
-    birthday: '1990-11-04',
-    gender: 'Male',
-    dateJoined: '2025-10-03',
-    password: 'RunLiftRepeat1',
-    height: 176,
-    weight: 76,
-    experience: 'Advanced',
-    goal: 'Endurance',
-    createdAt: '2025-10-03T07:45:00.000Z',
-    updatedAt: '2026-04-05T07:45:00.000Z',
-  },
 ];
 
 const ALEX_USER_ID = '6fcb7a80-f6e7-4e4e-88da-15d4b9bcf502';
@@ -1015,8 +983,6 @@ const legacySeedWorkouts: SeedWorkout[] = [
 export const seedWorkouts: SeedWorkout[] = [
   alexRankShowcaseWorkout,
   ...alexMay2026Workouts,
-  // Keep the other demo profiles intact while replacing Alex's old seed history.
-  ...legacySeedWorkouts.filter((workout) => workout.userId !== ALEX_USER_ID),
 ];
 
 export const seedDatabase = {

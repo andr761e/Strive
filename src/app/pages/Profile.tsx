@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowUp, Award, Calendar, Camera, ChevronLeft, ChevronRight, ImagePlus, LogOut, Settings, Target, Trash2, User } from 'lucide-react';
+import { ArrowUp, Award, Calendar, Camera, ChevronLeft, ChevronRight, ImagePlus, Settings, Target, Trash2, User, UsersRound } from 'lucide-react';
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, startOfMonth, startOfWeek, subMonths } from 'date-fns';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { ExerciseFilterPicker } from '../components/ExerciseFilterPicker';
+import { ProfileSwitcherDialog } from '../components/ProfileSwitcherDialog';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkout } from '../contexts/WorkoutContext';
 import { RankBadge, getExerciseRank, type ExerciseRankResult, type ExerciseRankTier, type RankDivision } from '../features/exercise-ranks';
@@ -39,7 +39,7 @@ function getRankSortScore(result: ExerciseRankResult) {
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const { user, logout, updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const { isWorkoutActive, expandWorkout } = useWorkout();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const avatarImageRef = useRef<HTMLImageElement | null>(null);
@@ -60,8 +60,8 @@ export function ProfilePage() {
   const [avatarOffsetX, setAvatarOffsetX] = useState(0);
   const [avatarOffsetY, setAvatarOffsetY] = useState(0);
   const [avatarError, setAvatarError] = useState('');
-  const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
   const [allRanksOpen, setAllRanksOpen] = useState(false);
+  const [profileSwitcherOpen, setProfileSwitcherOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -123,11 +123,6 @@ export function ProfilePage() {
   const formatRankEstimate = (result: ExerciseRankResult) => {
     if (!result.estimatedOneRepMax) return '-';
     return `${Math.round(result.estimatedOneRepMax).toLocaleString()} kg est. 1RM`;
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/auth/login', { replace: true });
   };
 
   const togglePersonalRecordExercise = (exerciseId: string) => {
@@ -323,13 +318,24 @@ export function ProfilePage() {
             </span>
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-semibold truncate">{user.name}</h1>
+            <h1 className="text-2xl font-semibold truncate">{user.username}</h1>
             <p className="text-zinc-400 text-sm">
               Member since {format(new Date(`${user.dateJoined}T00:00:00`), 'MMM yyyy')}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setProfileSwitcherOpen(true)}
+            className="premium-button premium-button-secondary flex h-11 w-11 shrink-0 items-center justify-center"
+            aria-label="Change profile"
+            title="Change profile"
+          >
+            <UsersRound className="h-5 w-5" />
+          </button>
         </div>
       </div>
+
+      <ProfileSwitcherDialog open={profileSwitcherOpen} onOpenChange={setProfileSwitcherOpen} />
 
       <div className="px-4 py-4">
         <div className="grid grid-cols-3 gap-3">
@@ -351,9 +357,9 @@ export function ProfilePage() {
       <div className="px-4 py-2">
         <h2 className="section-label mb-3">Profile</h2>
         <div className="premium-card p-4 space-y-3">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center gap-4">
             <span className="text-zinc-400">Username</span>
-            <span className="text-white">{user.username}</span>
+            <span className="truncate text-white">{user.username}</span>
           </div>
           <div className="h-px bg-white/10" />
           <div className="flex justify-between items-center">
@@ -595,36 +601,7 @@ export function ProfilePage() {
           </div>
           <span className="text-zinc-400">Open</span>
         </button>
-        <button
-          onClick={() => setSignOutDialogOpen(true)}
-          className="premium-button premium-button-danger w-full p-4 flex items-center gap-3 text-red-400"
-        >
-          <LogOut className="w-5 h-5" />
-          <span>Sign out</span>
-        </button>
       </div>
-
-      <AlertDialog open={signOutDialogOpen} onOpenChange={setSignOutDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sign out?</AlertDialogTitle>
-            <AlertDialogDescription className="text-zinc-400">
-              You will return to the login screen. Your workouts and profile data will stay saved on this device.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="premium-button premium-button-secondary border-white/10 text-white">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleLogout}
-              className="premium-button premium-button-danger"
-            >
-              Sign out
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <Dialog open={allRanksOpen} onOpenChange={setAllRanksOpen}>
         <DialogContent className="max-w-md max-h-[84vh] overflow-hidden flex flex-col">

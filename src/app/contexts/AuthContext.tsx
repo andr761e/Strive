@@ -3,13 +3,10 @@ import { DataService, clearSessionUser, getSessionUser, setSessionUser, type DBU
 
 interface AuthContextValue {
   user: DBUser | null;
+  profiles: DBUser[];
   isLoading: boolean;
-  login: (identifier: string, password: string) => void;
-  signup: (payload: {
-    name: string;
+  createProfile: (payload: {
     username: string;
-    email: string;
-    password: string;
     birthday: string;
     gender: string;
     height?: number;
@@ -17,18 +14,22 @@ interface AuthContextValue {
     experience?: string;
     goal?: string;
   }) => void;
-  logout: () => void;
-  updateUser: (updates: Partial<Omit<DBUser, 'id' | 'username' | 'email' | 'password' | 'createdAt'>>) => void;
+  switchProfile: (userId: string) => void;
+  deleteProfile: () => DBUser | null;
+  updateUser: (updates: Partial<Omit<DBUser, 'id' | 'createdAt'>>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<DBUser | null>(null);
+  const [profiles, setProfiles] = useState<DBUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     DataService.initialize();
+    const localProfiles = DataService.getUsers();
+    setProfiles(localProfiles);
     const sessionUserId = getSessionUser();
     if (sessionUserId) {
       const existingUser = DataService.getUserById(sessionUserId);
@@ -36,26 +37,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(existingUser);
       } else {
         clearSessionUser();
+        if (localProfiles.length === 1) {
+          setSessionUser(localProfiles[0].id);
+          setUser(localProfiles[0]);
+        }
       }
+    } else if (localProfiles.length === 1) {
+      setSessionUser(localProfiles[0].id);
+      setUser(localProfiles[0]);
     }
     setIsLoading(false);
   }, []);
 
-  const login = (identifier: string, password: string) => {
-    const existingUser = DataService.validateCredentials(identifier, password);
-    if (!existingUser) {
-      throw new Error('Invalid username or password.');
-    }
-
-    setSessionUser(existingUser.id);
-    setUser(existingUser);
-  };
-
-  const signup = (payload: {
-    name: string;
+  const createProfile = (payload: {
     username: string;
-    email: string;
-    password: string;
     birthday: string;
     gender: string;
     height?: number;
@@ -63,34 +58,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     experience?: string;
     goal?: string;
   }) => {
-    const newUser = DataService.createUser(payload);
+    const newUser = DataService.createLocalProfile(payload);
     setSessionUser(newUser.id);
     setUser(newUser);
+    setProfiles(DataService.getUsers());
   };
 
-  const logout = () => {
-    setUser(null);
-    clearSessionUser();
+  const switchProfile = (userId: string) => {
+    const nextProfile = DataService.getUserById(userId);
+    if (!nextProfile) {
+      throw new Error('That local profile could not be found.');
+    }
+    setSessionUser(nextProfile.id);
+    setUser(nextProfile);
   };
 
-  const updateUser = (updates: Partial<Omit<DBUser, 'id' | 'username' | 'email' | 'password' | 'createdAt'>>) => {
+  const deleteProfile = () => {
+    if (user) {
+      DataService.deleteUserProfile(user.id);
+    }
+    const remainingProfiles = DataService.getUsers();
+    const nextProfile = remainingProfiles[0] ?? null;
+    setProfiles(remainingProfiles);
+    setUser(nextProfile);
+    if (nextProfile) {
+      setSessionUser(nextProfile.id);
+    } else {
+      clearSessionUser();
+    }
+    return nextProfile;
+  };
+
+  const updateUser = (updates: Partial<Omit<DBUser, 'id' | 'createdAt'>>) => {
     if (!user) return;
     const updatedUser = DataService.updateUserSettings(user.id, updates);
     if (updatedUser) {
       setUser(updatedUser);
+      setProfiles(DataService.getUsers());
     }
   };
 
   const value = useMemo(
     () => ({
       user,
+      profiles,
       isLoading,
-      login,
-      signup,
-      logout,
+      createProfile,
+      switchProfile,
+      deleteProfile,
       updateUser,
     }),
-    [user, isLoading],
+    [user, profiles, isLoading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

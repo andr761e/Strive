@@ -208,6 +208,25 @@
     --strive-success: #22c55e;
     --strive-warning: #f59e0b;
     --strive-danger: #ef4444;
+    --strive-rest-bg: rgba(16, 185, 129, 0.12);
+    --strive-rest-bg-strong: rgba(16, 185, 129, 0.18);
+    --strive-rest-border: rgba(52, 211, 153, 0.34);
+    --strive-rest-text: #a7f3d0;
+    --strive-rest-text-strong: #ecfdf5;
+    --strive-rest-track: rgba(0, 0, 0, 0.3);
+    --strive-rest-progress: #34d399;
+    --strive-warmup-bg: rgba(245, 158, 11, 0.15);
+    --strive-warmup-bg-strong: rgba(245, 158, 11, 0.25);
+    --strive-warmup-border: rgba(251, 191, 36, 0.46);
+    --strive-warmup-text: #fde68a;
+    --strive-drop-bg: rgba(139, 92, 246, 0.15);
+    --strive-drop-bg-strong: rgba(139, 92, 246, 0.25);
+    --strive-drop-border: rgba(167, 139, 250, 0.46);
+    --strive-drop-text: #ddd6fe;
+    --strive-failure-bg: rgba(239, 68, 68, 0.15);
+    --strive-failure-bg-strong: rgba(239, 68, 68, 0.25);
+    --strive-failure-border: rgba(248, 113, 113, 0.46);
+    --strive-failure-text: #fecaca;
     --strive-card-glaze: rgba(255, 255, 255, 0.032);
     --strive-card-glaze-soft: rgba(255, 255, 255, 0.012);
     --strive-focus-ring: rgba(96, 165, 250, 0.85);
@@ -510,6 +529,25 @@
     --strive-success: #16a34a;
     --strive-warning: #d97706;
     --strive-danger: #dc2626;
+    --strive-rest-bg: #d1fae5;
+    --strive-rest-bg-strong: #a7f3d0;
+    --strive-rest-border: rgba(5, 150, 105, 0.42);
+    --strive-rest-text: #047857;
+    --strive-rest-text-strong: #065f46;
+    --strive-rest-track: rgba(15, 23, 42, 0.14);
+    --strive-rest-progress: #059669;
+    --strive-warmup-bg: #fef3c7;
+    --strive-warmup-bg-strong: #fde68a;
+    --strive-warmup-border: rgba(180, 83, 9, 0.42);
+    --strive-warmup-text: #92400e;
+    --strive-drop-bg: #ede9fe;
+    --strive-drop-bg-strong: #ddd6fe;
+    --strive-drop-border: rgba(109, 40, 217, 0.38);
+    --strive-drop-text: #6d28d9;
+    --strive-failure-bg: #fee2e2;
+    --strive-failure-bg-strong: #fecaca;
+    --strive-failure-border: rgba(185, 28, 28, 0.38);
+    --strive-failure-text: #b91c1c;
     --strive-card-glaze: rgba(255, 255, 255, 0.82);
     --strive-card-glaze-soft: rgba(226, 232, 240, 0.34);
     --strive-focus-ring: rgba(37, 99, 235, 0.6);
@@ -575,6 +613,25 @@
     --strive-success: #16a34a;
     --strive-warning: #ca8a04;
     --strive-danger: #dc2626;
+    --strive-rest-bg: #d1fae5;
+    --strive-rest-bg-strong: #a7f3d0;
+    --strive-rest-border: rgba(4, 120, 87, 0.4);
+    --strive-rest-text: #047857;
+    --strive-rest-text-strong: #065f46;
+    --strive-rest-track: rgba(17, 26, 24, 0.14);
+    --strive-rest-progress: #059669;
+    --strive-warmup-bg: #fef3c7;
+    --strive-warmup-bg-strong: #fde68a;
+    --strive-warmup-border: rgba(146, 64, 14, 0.4);
+    --strive-warmup-text: #92400e;
+    --strive-drop-bg: #ede9fe;
+    --strive-drop-bg-strong: #ddd6fe;
+    --strive-drop-border: rgba(91, 33, 182, 0.38);
+    --strive-drop-text: #5b21b6;
+    --strive-failure-bg: #fee2e2;
+    --strive-failure-bg-strong: #fecaca;
+    --strive-failure-border: rgba(185, 28, 28, 0.38);
+    --strive-failure-text: #b91c1c;
     --strive-card-glaze: rgba(255, 255, 255, 0.82);
     --strive-card-glaze-soft: rgba(229, 231, 235, 0.3);
     --strive-focus-ring: rgba(15, 118, 110, 0.58);
@@ -784,6 +841,121 @@
     border-color: rgba(34, 197, 94, 0.24);
     background: rgba(34, 197, 94, 0.1);
     color: #bbf7d0;
+  }
+
+  .rest-timer-chip {
+    border: 1px solid var(--strive-rest-border);
+    background: var(--strive-rest-bg);
+    color: var(--strive-rest-text);
+  }
+
+  .rest-timer-chip:hover {
+    background: var(--strive-rest-bg-strong);
+  }
+
+  .rest-timer-panel {
+    border-color: var(--strive-rest-border);
+    background:
+      linear-gradient(180deg, var(--strive-rest-bg), transparent),
+      var(--strive-surface-raised);
+    box-shadow: 0 18px 45px color-mix(in srgb, var(--strive-rest-progress) 12%, transparent);
+  }
+
+  .rest-timer-kicker {
+    color: var(--strive-rest-text);
+  }
+
+  .rest-timer-value {
+    color: var(--strive-rest-text-strong);
+  }
+
+  .rest-timer-track {
+    background: var(--strive-rest-track);
+  }
+
+  .rest-timer-progress {
+    background: var(--strive-rest-progress);
+  }
+
+  .set-type-option,
+  .set-type-compact {
+    border: 1px solid var(--strive-border);
+    background: var(--strive-row);
+    color: var(--strive-text);
+  }
+
+  .set-type-option-unselected {
+    border: 1px solid var(--strive-border);
+    background: var(--strive-row);
+    color: var(--strive-text);
+  }
+
+  .set-type-option-unselected:hover {
+    border-color: var(--strive-border-strong);
+    background: var(--strive-surface-hover);
+  }
+
+  .set-type-normal {
+    border-color: var(--strive-accent-border);
+    background: var(--strive-accent-soft);
+    color: var(--strive-text);
+  }
+
+  .set-type-warmup {
+    border-color: var(--strive-warmup-border);
+    background: var(--strive-warmup-bg);
+    color: var(--strive-warmup-text);
+  }
+
+  .set-type-drop {
+    border-color: var(--strive-drop-border);
+    background: var(--strive-drop-bg);
+    color: var(--strive-drop-text);
+  }
+
+  .set-type-failure {
+    border-color: var(--strive-failure-border);
+    background: var(--strive-failure-bg);
+    color: var(--strive-failure-text);
+  }
+
+  .set-type-icon,
+  .set-type-icon-unselected {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+  }
+
+  .set-type-icon-unselected {
+    background: var(--strive-hover);
+    color: var(--strive-muted);
+  }
+
+  .set-type-normal .set-type-icon {
+    background: color-mix(in srgb, var(--strive-accent) 22%, transparent);
+    color: var(--strive-accent);
+  }
+
+  .set-type-warmup .set-type-icon {
+    background: var(--strive-warmup-bg-strong);
+  }
+
+  .set-type-drop .set-type-icon {
+    background: var(--strive-drop-bg-strong);
+  }
+
+  .set-type-failure .set-type-icon {
+    background: var(--strive-failure-bg-strong);
+  }
+
+  .set-type-description {
+    color: inherit;
+    opacity: 0.82;
+  }
+
+  .set-type-dot {
+    background: currentColor;
   }
 
   .bottom-input-panel {
@@ -1482,6 +1654,37 @@
     color: var(--strive-subtle) !important;
   }
 
+  :root[data-theme='arctic'] [class~='text-green-200'],
+  :root[data-theme='chalk'] [class~='text-green-200'],
+  :root[data-theme='arctic'] [class~='text-green-300'],
+  :root[data-theme='chalk'] [class~='text-green-300'],
+  :root[data-theme='arctic'] [class~='text-emerald-200'],
+  :root[data-theme='chalk'] [class~='text-emerald-200'],
+  :root[data-theme='arctic'] [class~='text-emerald-300'],
+  :root[data-theme='chalk'] [class~='text-emerald-300'] {
+    color: #047857 !important;
+  }
+
+  :root[data-theme='arctic'] [class~='text-amber-100'],
+  :root[data-theme='chalk'] [class~='text-amber-100'],
+  :root[data-theme='arctic'] [class~='text-amber-200'],
+  :root[data-theme='chalk'] [class~='text-amber-200'],
+  :root[data-theme='arctic'] [class~='text-orange-300'],
+  :root[data-theme='chalk'] [class~='text-orange-300'] {
+    color: #9a3412 !important;
+  }
+
+  :root[data-theme='arctic'] [class~='text-red-200'],
+  :root[data-theme='chalk'] [class~='text-red-200'],
+  :root[data-theme='arctic'] [class~='text-red-300'],
+  :root[data-theme='chalk'] [class~='text-red-300'],
+  :root[data-theme='arctic'] [class~='hover:text-red-300']:hover,
+  :root[data-theme='chalk'] [class~='hover:text-red-300']:hover,
+  :root[data-theme='arctic'] [class~='hover:text-red-400']:hover,
+  :root[data-theme='chalk'] [class~='hover:text-red-400']:hover {
+    color: #b91c1c !important;
+  }
+
   :root[data-theme='arctic'] [class~='bg-zinc-950'],
   :root[data-theme='chalk'] [class~='bg-zinc-950'],
   :root[data-theme='arctic'] [class~='bg-zinc-950/95'],
@@ -1568,8 +1771,8 @@
 
   :root[data-theme='arctic'] .active-workout-stat,
   :root[data-theme='chalk'] .active-workout-stat,
-  :root[data-theme='arctic'] .active-workout-field,
-  :root[data-theme='chalk'] .active-workout-field {
+  :root[data-theme='arctic'] .active-workout-field:not(.set-type-warmup):not(.set-type-drop):not(.set-type-failure),
+  :root[data-theme='chalk'] .active-workout-field:not(.set-type-warmup):not(.set-type-drop):not(.set-type-failure) {
     border-color: var(--strive-border);
     background: color-mix(in srgb, var(--strive-surface) 86%, var(--strive-text) 4%);
   }

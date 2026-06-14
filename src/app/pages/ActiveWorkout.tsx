@@ -1754,7 +1754,7 @@ function ActiveWorkoutPageContent() {
                         event.stopPropagation();
                         setRestPanelOpen((open) => !open);
                       }}
-                      className="flex h-5 shrink-0 items-center rounded-full border border-emerald-400/25 bg-emerald-500/12 px-2 py-0 font-mono text-[11px] font-semibold leading-none text-emerald-200 transition-colors hover:bg-emerald-500/18"
+                      className="rest-timer-chip flex h-5 shrink-0 items-center rounded-full px-2 py-0 font-mono text-[11px] font-semibold leading-none transition-colors"
                     >
                       Rest {restStatusLabel}
                     </button>
@@ -1777,20 +1777,20 @@ function ActiveWorkoutPageContent() {
           </div>
           {restTimerActive && restPanelOpen && (
             <div
-              className="rest-timer-panel mt-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.08] p-3 shadow-[0_18px_45px_rgba(16,185,129,0.08)]"
+              className="rest-timer-panel mt-3 rounded-2xl border p-3"
               data-no-sheet-drag="true"
               onPointerDown={(event) => event.stopPropagation()}
             >
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold uppercase tracking-normal text-emerald-200/80">Rest timer</div>
+                  <div className="rest-timer-kicker text-xs font-semibold uppercase tracking-normal">Rest timer</div>
                   <div className="truncate text-sm text-zinc-300">{activeRestTimer?.exerciseName}</div>
                 </div>
-                <div className="font-mono text-2xl font-bold text-white">{restStatusLabel}</div>
+                <div className="rest-timer-value font-mono text-2xl font-bold">{restStatusLabel}</div>
               </div>
-              <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-black/30">
+              <div className="rest-timer-track mb-3 h-1.5 overflow-hidden rounded-full">
                 <div
-                  className="h-full rounded-full bg-emerald-400 transition-[width] duration-300"
+                  className="rest-timer-progress h-full rounded-full transition-[width] duration-300"
                   style={{ width: `${restProgressPercent}%` }}
                 />
               </div>
