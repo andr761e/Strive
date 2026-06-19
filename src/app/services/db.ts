@@ -22,6 +22,7 @@ const PROFILE_GENDERS = ['Male', 'Female'] as const;
 const DEFAULT_EXERCISE_REST_SECONDS = 90;
 const MIN_EXERCISE_REST_SECONDS = 15;
 const MAX_EXERCISE_REST_SECONDS = 600;
+const REMOVED_DEVELOPMENT_PROFILE_USERNAMES = new Set(['andr_andersen']);
 
 export type ProgressSectionKey =
   | 'strengthChart'
@@ -233,6 +234,10 @@ interface SaveRoutineInput {
 }
 
 let cachedDatabase: LocalDb | null = null;
+let developmentSeedDatabase: Pick<LocalDb, 'users' | 'workouts'> = {
+  users: [],
+  workouts: [],
+};
 
 function getStorage() {
   return typeof window !== 'undefined' ? window.localStorage : null;
@@ -663,6 +668,30 @@ function normalizeDatabase(input: Partial<LocalDb> | null | undefined) {
   };
 }
 
+function mergeDevelopmentSeedData(input: Partial<LocalDb>): Partial<LocalDb> {
+  if (!import.meta.env.DEV) return input;
+
+  const seedUsers = developmentSeedDatabase.users;
+  const inputUsers = Array.isArray(input.users) ? input.users : [];
+  const retainedUsers = inputUsers.filter((user) => {
+    const username = normalizeUsername(user.username || user.name || '');
+    if (REMOVED_DEVELOPMENT_PROFILE_USERNAMES.has(username)) return false;
+    return user.id !== ALEX_SEED_USER_ID;
+  });
+  const users = [...retainedUsers, ...seedUsers];
+
+  const inputWorkouts = Array.isArray(input.workouts) ? input.workouts : [];
+  const retainedWorkoutIds = new Set(inputWorkouts.map((workout) => workout.id));
+  const seededWorkouts = developmentSeedDatabase.workouts
+    .filter((workout) => !retainedWorkoutIds.has(workout.id));
+
+  return {
+    ...input,
+    users,
+    workouts: [...inputWorkouts, ...seededWorkouts],
+  };
+}
+
 function readDatabase(): LocalDb {
   if (cachedDatabase) {
     return cachedDatabase;
@@ -676,14 +705,14 @@ function readDatabase(): LocalDb {
 
   const raw = storage.getItem(STORAGE_KEY) ?? storage.getItem(LEGACY_STORAGE_KEY);
   if (!raw) {
-    const database = createEmptyDatabase();
+    const database = normalizeDatabase(mergeDevelopmentSeedData(createEmptyDatabase()));
     cachedDatabase = database;
     storage.setItem(STORAGE_KEY, JSON.stringify(database));
     return database;
   }
 
   try {
-    const database = normalizeDatabase(JSON.parse(raw) as Partial<LocalDb>);
+    const database = normalizeDatabase(mergeDevelopmentSeedData(JSON.parse(raw) as Partial<LocalDb>));
     cachedDatabase = database;
     storage.setItem(STORAGE_KEY, JSON.stringify(database));
     return database;
@@ -980,7 +1009,15 @@ function getExerciseIdsFromWorkouts(workouts: WorkoutRecord[]) {
 }
 
 export const DataService = {
-  initialize() {
+  async initialize() {
+    if (import.meta.env.DEV) {
+      const { seedDatabase } = await import('../../../db/seed');
+      developmentSeedDatabase = {
+        users: seedDatabase.users as unknown as DBUser[],
+        workouts: seedDatabase.workouts as unknown as WorkoutRecord[],
+      };
+      cachedDatabase = null;
+    }
     readDatabase();
   },
 

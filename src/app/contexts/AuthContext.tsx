@@ -27,26 +27,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    DataService.initialize();
-    const localProfiles = DataService.getUsers();
-    setProfiles(localProfiles);
-    const sessionUserId = getSessionUser();
-    if (sessionUserId) {
-      const existingUser = DataService.getUserById(sessionUserId);
-      if (existingUser) {
-        setUser(existingUser);
-      } else {
-        clearSessionUser();
-        if (localProfiles.length === 1) {
-          setSessionUser(localProfiles[0].id);
-          setUser(localProfiles[0]);
+    let cancelled = false;
+
+    const initializeProfiles = async () => {
+      await DataService.initialize();
+      if (cancelled) return;
+
+      const localProfiles = DataService.getUsers();
+      setProfiles(localProfiles);
+      const sessionUserId = getSessionUser();
+      if (sessionUserId) {
+        const existingUser = DataService.getUserById(sessionUserId);
+        if (existingUser) {
+          setUser(existingUser);
+        } else {
+          clearSessionUser();
+          if (localProfiles.length === 1) {
+            setSessionUser(localProfiles[0].id);
+            setUser(localProfiles[0]);
+          }
         }
+      } else if (localProfiles.length === 1) {
+        setSessionUser(localProfiles[0].id);
+        setUser(localProfiles[0]);
       }
-    } else if (localProfiles.length === 1) {
-      setSessionUser(localProfiles[0].id);
-      setUser(localProfiles[0]);
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    void initializeProfiles();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const createProfile = (payload: {

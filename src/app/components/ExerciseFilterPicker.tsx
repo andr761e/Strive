@@ -45,6 +45,10 @@ function normalizeMuscle(muscle: string) {
   return muscle === 'Abs' ? 'Core' : muscle;
 }
 
+function getDominantMuscle(exercise: Pick<Exercise, 'mainMuscles'>) {
+  return exercise.mainMuscles[0] ? normalizeMuscle(exercise.mainMuscles[0]) : null;
+}
+
 function renderPickerIcon(isSelected: boolean, icon: PickerIcon) {
   if (isSelected) return <Check className="h-4 w-4" />;
   if (icon === 'target') return <Target className="h-4 w-4" />;
@@ -85,9 +89,10 @@ export function ExerciseFilterPicker<TExercise extends Exercise>({
 
     const matches = exercises.filter((exercise) => {
       const matchesSearch = exercise.name.toLowerCase().includes(normalizedQuery);
+      const dominantMuscle = getDominantMuscle(exercise);
       const matchesMuscle =
         selectedMuscles.length === 0 ||
-        exercise.mainMuscles.some((muscle) => selectedMuscles.includes(normalizeMuscle(muscle)));
+        (dominantMuscle !== null && selectedMuscles.includes(dominantMuscle));
 
       return matchesSearch && matchesMuscle;
     });
