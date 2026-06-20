@@ -44,6 +44,7 @@ import { ExerciseRankCard, getExerciseRank, type ExerciseRankResult } from '../f
 import { BottomNav } from '../components/BottomNav';
 import { WorkoutCollapsedHeader } from '../components/WorkoutCollapsedHeader';
 import { triggerHaptic } from '../utils/haptics';
+import { COLLAPSED_WORKOUT_BAR_HEIGHT, getBottomNavHeight, getCollapsedWorkoutOffset } from '../utils/layoutMetrics';
 
 interface InputState {
   exerciseId: string;
@@ -60,8 +61,6 @@ function isInteractiveSheetDragTarget(target: EventTarget | null) {
 const ACTIVE_WORKOUT_SHEET_TRANSITION_MS = 900;
 const ACTIVE_WORKOUT_SHEET_EASING = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
 
-const ACTIVE_WORKOUT_COLLAPSED_BAR_HEIGHT = 68;
-const ACTIVE_WORKOUT_BOTTOM_NAV_HEIGHT = 68;
 const DEFAULT_REST_SECONDS = 90;
 const REST_STEP_SECONDS = 15;
 const MIN_REST_SECONDS = 15;
@@ -101,8 +100,7 @@ function withPreferredRestSeconds(exerciseLog: ExerciseLog, userId?: string): Ex
 }
 
 function getActiveWorkoutCollapsedOffset() {
-  if (typeof window === 'undefined') return 560;
-  return Math.max(0, window.innerHeight - ACTIVE_WORKOUT_BOTTOM_NAV_HEIGHT - ACTIVE_WORKOUT_COLLAPSED_BAR_HEIGHT);
+  return getCollapsedWorkoutOffset();
 }
 
 function getActiveWorkoutCollapseThreshold() {
@@ -513,9 +511,9 @@ function ReorderExercisesOverlay({ exercisesList, onClose, onSave }: ReorderExer
   }, [draggingIndex]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950 text-white">
+    <div className="active-workout-fullscreen-modal fixed inset-0 z-50 bg-zinc-950 text-white">
       <div className="flex min-h-full flex-col">
-        <div className="sticky top-0 z-10 border-b border-white/10 bg-zinc-950/95 px-4 py-4 backdrop-blur-xl">
+        <div className="active-workout-modal-topbar sticky top-0 z-10 border-b border-white/10 bg-zinc-950/95 px-4 py-4 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -1646,14 +1644,14 @@ function ActiveWorkoutPageContent() {
   const headerMorphTransition = isSheetDragging || isWorkoutSheetOffsetDragging
     ? 'none'
     : `opacity ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}, transform ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}`;
-  const sheetBottomInset = ACTIVE_WORKOUT_BOTTOM_NAV_HEIGHT * navRevealProgress;
+  const sheetBottomInset = getBottomNavHeight() * navRevealProgress;
   const sheetTransition = `transform ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}, height ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}, max-height ${ACTIVE_WORKOUT_SHEET_TRANSITION_MS}ms ${ACTIVE_WORKOUT_SHEET_EASING}`;
   const sheetDragStyle: CSSProperties | undefined = isSheetTranslating
     ? {
         transform: `translate3d(0, ${sheetDragOffset}px, 0)`,
-        height: `calc(100dvh - ${sheetDragOffset + sheetBottomInset}px)`,
-        maxHeight: `calc(100dvh - ${sheetDragOffset + sheetBottomInset}px)`,
-        minHeight: `${ACTIVE_WORKOUT_COLLAPSED_BAR_HEIGHT}px`,
+        height: `calc(100dvh - env(safe-area-inset-top) - ${sheetDragOffset + sheetBottomInset}px)`,
+        maxHeight: `calc(100dvh - env(safe-area-inset-top) - ${sheetDragOffset + sheetBottomInset}px)`,
+        minHeight: `${COLLAPSED_WORKOUT_BAR_HEIGHT}px`,
         overflowY: sheetDragOffset > 4 ? 'hidden' : undefined,
         transition: isSheetDragging || isWorkoutSheetOffsetDragging ? 'none' : sheetTransition,
       }

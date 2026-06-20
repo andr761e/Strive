@@ -2,9 +2,8 @@ import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { useLocation } from 'react-router';
 import { useWorkout } from '../contexts/WorkoutContext';
 import { WorkoutCollapsedHeader } from './WorkoutCollapsedHeader';
+import { getCollapsedWorkoutOffset } from '../utils/layoutMetrics';
 
-const COLLAPSED_BAR_HEIGHT = 68;
-const BOTTOM_NAV_HEIGHT = 68;
 const OPEN_DRAG_THRESHOLD = 96;
 const DRAG_START_THRESHOLD = 4;
 const OPEN_SETTLE_MS = 900;
@@ -21,8 +20,7 @@ function clampNumber(value: number, min: number, max: number) {
 }
 
 function getCollapsedOffset() {
-  if (typeof window === 'undefined') return 560;
-  return Math.max(0, window.innerHeight - BOTTOM_NAV_HEIGHT - COLLAPSED_BAR_HEIGHT);
+  return getCollapsedWorkoutOffset();
 }
 
 export function PersistentWorkoutBar() {
@@ -210,7 +208,7 @@ export function PersistentWorkoutBar() {
   return (
     <div
       onPointerDown={handleDragStart}
-      className={`fixed bottom-[68px] left-1/2 z-40 w-full max-w-md -translate-x-1/2 cursor-pointer touch-none px-2 transition-opacity ${
+      className={`persistent-workout-bar fixed left-1/2 z-40 w-full max-w-md -translate-x-1/2 cursor-pointer touch-none px-2 transition-opacity ${
         workoutSheetOffset !== null ? 'opacity-0' : 'opacity-100'
       }`}
     >

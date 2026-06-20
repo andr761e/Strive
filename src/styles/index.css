@@ -190,6 +190,9 @@
     --strive-input-bg: rgba(10, 12, 17, 0.92);
     --strive-hover: rgba(255, 255, 255, 0.04);
     --strive-nav-bg: rgba(6, 7, 10, 0.88);
+    --strive-safe-area-top: env(safe-area-inset-top);
+    --strive-safe-area-bottom: env(safe-area-inset-bottom);
+    --strive-bottom-nav-height: 68px;
     --strive-header-bg: rgba(6, 7, 10, 0.88);
     --strive-border: rgba(148, 163, 184, 0.14);
     --strive-border-strong: rgba(148, 163, 184, 0.22);
@@ -684,7 +687,9 @@
 
 @layer components {
   .strive-app {
-    min-height: 100vh;
+    box-sizing: border-box;
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
     background:
       linear-gradient(180deg, var(--strive-card-glaze), transparent 18rem),
       var(--strive-bg);
@@ -692,11 +697,12 @@
   }
 
   .app-runtime-shell {
+    min-height: calc(100dvh - env(safe-area-inset-top));
     background: var(--strive-bg);
   }
 
   .screen-shell {
-    min-height: 100vh;
+    min-height: calc(100dvh - env(safe-area-inset-top));
     background: var(--strive-bg);
     color: var(--strive-text);
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
@@ -1229,14 +1235,22 @@
     z-index: 60 !important;
   }
 
+  .active-workout-fullscreen-modal {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .active-workout-modal-topbar {
+    top: env(safe-area-inset-top);
+  }
+
   .active-workout-sheet {
     position: fixed;
-    inset: 0;
+    inset: env(safe-area-inset-top) 0 0;
     z-index: 70;
     width: 100%;
     max-width: 28rem;
-    min-height: 100dvh;
-    max-height: 100dvh;
+    min-height: calc(100dvh - env(safe-area-inset-top));
+    max-height: calc(100dvh - env(safe-area-inset-top));
     margin: 0 auto;
     overflow-x: hidden;
     overflow-y: auto;
@@ -1282,6 +1296,10 @@
 
   .persistent-workout-drag-preview {
     will-change: height, opacity;
+  }
+
+  .persistent-workout-bar {
+    bottom: calc(var(--strive-bottom-nav-height) + env(safe-area-inset-bottom));
   }
 
   .persistent-workout-minimized-header {
