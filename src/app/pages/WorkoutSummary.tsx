@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { ArrowUp, ArrowDown, Check, Clock, Dumbbell, Minus, Target, TrendingUp } from 'lucide-react';
+import { ArrowUp, ArrowDown, Check, Clock, Dumbbell, Flame, Minus, Target, TrendingUp } from 'lucide-react';
 import { exercises, getExerciseLogging, type ExerciseLog, type MuscleGroup } from '../data/mockData';
 import { RankCelebrationOverlay, type WorkoutRankProgressItem } from '../features/exercise-ranks';
 import { getExerciseLiftedLoadVolume } from '../utils/workoutVolume';
@@ -17,6 +17,11 @@ interface WorkoutSummaryData {
     setsChange: number;
   };
   rankProgress?: WorkoutRankProgressItem[];
+  streak?: {
+    previous: number;
+    current: number;
+    didIncrease: boolean;
+  };
 }
 
 export function WorkoutSummaryPage() {
@@ -33,6 +38,16 @@ export function WorkoutSummaryPage() {
     navigate('/');
     return null;
   }
+
+  const streak = summaryData.streak;
+  const streakUpdated = Boolean(streak?.didIncrease && streak.current > streak.previous);
+  const streakMessage = !streak
+    ? ''
+    : streakUpdated && streak.previous > 0
+      ? `Updated from ${streak.previous} to ${streak.current}.`
+      : streakUpdated
+        ? 'Streak started. Log again within 72 hours to keep it alive.'
+        : 'Streak held steady. Log again within 72 hours to keep it alive.';
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -79,6 +94,26 @@ export function WorkoutSummaryPage() {
         <div className="text-center py-2">
           <h2 className="text-2xl font-semibold text-white">{summaryData.workoutName}</h2>
         </div>
+
+        {streak && (
+          <div className={`premium-card streak-update-card p-4 ${streakUpdated ? 'is-live' : ''}`}>
+            <div className="flex items-center gap-3">
+              <div className={`streak-flame-shell ${streakUpdated ? 'is-live' : ''}`}>
+                <Flame className="streak-flame-icon h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium uppercase tracking-normal text-orange-300">Day Streak</div>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className={`stat-number text-3xl leading-none ${streakUpdated ? 'streak-count-pop' : ''}`}>
+                    {streak.current}
+                  </span>
+                  <span className="text-sm text-zinc-400">{streak.current === 1 ? 'day' : 'days'}</span>
+                </div>
+                <p className="mt-1 text-sm text-zinc-400">{streakMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">

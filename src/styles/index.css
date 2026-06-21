@@ -178,6 +178,61 @@
   }
 }
 
+@keyframes streak-card-glow {
+  0% {
+    box-shadow: var(--strive-shadow-soft);
+  }
+  42% {
+    box-shadow:
+      0 0 0 1px rgba(251, 146, 60, 0.3),
+      0 0 2.6rem rgba(251, 146, 60, 0.26),
+      var(--strive-shadow-soft);
+  }
+  100% {
+    box-shadow: var(--strive-shadow-soft);
+  }
+}
+
+@keyframes streak-flame-pop {
+  0% {
+    opacity: 0.72;
+    transform: scale(0.72) rotate(-10deg);
+  }
+  42% {
+    opacity: 1;
+    transform: scale(1.2) rotate(6deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes streak-flame-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0.25rem rgba(251, 146, 60, 0.45));
+  }
+  50% {
+    filter: drop-shadow(0 0 0.95rem rgba(251, 146, 60, 0.9));
+  }
+}
+
+@keyframes streak-count-pop {
+  0% {
+    transform: translateY(0.2rem) scale(0.84);
+    opacity: 0.72;
+  }
+  52% {
+    transform: translateY(-0.08rem) scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
 @layer base {
   :root,
   :root[data-theme='strive'] {
@@ -743,6 +798,56 @@
       linear-gradient(180deg, var(--strive-card-glaze), var(--strive-card-glaze-soft)),
       var(--strive-surface);
     box-shadow: var(--strive-shadow-soft);
+  }
+
+  .streak-update-card {
+    position: relative;
+    overflow: hidden;
+    border-color: rgba(251, 146, 60, 0.26);
+    background:
+      radial-gradient(circle at 12% 20%, rgba(251, 146, 60, 0.16), transparent 8rem),
+      linear-gradient(180deg, var(--strive-card-glaze), var(--strive-card-glaze-soft)),
+      var(--strive-surface);
+  }
+
+  .streak-update-card.is-live {
+    animation: streak-card-glow 900ms cubic-bezier(0.19, 1, 0.22, 1) both;
+  }
+
+  .streak-flame-shell {
+    display: flex;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(251, 146, 60, 0.28);
+    border-radius: var(--strive-radius-sm);
+    background:
+      radial-gradient(circle at 50% 22%, rgba(253, 186, 116, 0.32), transparent 1.1rem),
+      rgba(249, 115, 22, 0.14);
+    color: #fb923c;
+    box-shadow: 0 0 1.3rem rgba(249, 115, 22, 0.13);
+  }
+
+  .streak-flame-shell.is-live .streak-flame-icon {
+    animation:
+      streak-flame-pop 640ms cubic-bezier(0.19, 1, 0.22, 1) both,
+      streak-flame-glow 1.25s ease-in-out 640ms 2;
+  }
+
+  .streak-count-pop {
+    display: inline-block;
+    transform-origin: center bottom;
+    animation: streak-count-pop 680ms cubic-bezier(0.19, 1, 0.22, 1) 120ms both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .streak-update-card.is-live,
+    .streak-flame-shell.is-live .streak-flame-icon,
+    .streak-count-pop {
+      animation: none;
+    }
   }
 
   .premium-card-muted {

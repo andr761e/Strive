@@ -180,6 +180,7 @@ export function FinishWorkoutPage() {
     const comparison = user
       ? DataService.getWorkoutComparison(user.id, totalVolume, totalLoggedSets)
       : { volumeChange: 0, setsChange: 0 };
+    const previousStreak = user ? DataService.getWorkoutStreak(user.id) : 0;
     const savedWorkout = user
       ? DataService.saveWorkout(user.id, {
           workoutName,
@@ -191,6 +192,7 @@ export function FinishWorkoutPage() {
           sourceRoutineId: routineId,
         })
       : null;
+    const updatedStreak = user && savedWorkout ? DataService.getWorkoutStreak(user.id) : previousStreak;
 
     if (user && !routineId && saveAsRoutine) {
       DataService.saveRoutine(user.id, buildRoutineFromWorkout(newRoutineName, updatedExercises));
@@ -230,6 +232,11 @@ export function FinishWorkoutPage() {
       exercises: updatedExercises,
       comparison,
       rankProgress,
+      streak: {
+        previous: previousStreak,
+        current: updatedStreak,
+        didIncrease: updatedStreak > previousStreak,
+      },
     };
 
     triggerHaptic('heavy', { force: true });

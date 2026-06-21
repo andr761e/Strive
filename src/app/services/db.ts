@@ -23,6 +23,18 @@ const DEFAULT_EXERCISE_REST_SECONDS = 90;
 const MIN_EXERCISE_REST_SECONDS = 15;
 const MAX_EXERCISE_REST_SECONDS = 600;
 const REMOVED_DEVELOPMENT_PROFILE_USERNAMES = new Set(['andr_andersen']);
+const STREAK_RESET_HOURS = 72;
+const STREAK_RESET_MS = STREAK_RESET_HOURS * 60 * 60 * 1000;
+const EXERCISE_ID_ALIASES: Record<string, string> = {
+  '38': '37',
+  '45': '6',
+  '46': '6',
+  '54': '53',
+  '191': '190',
+  '192': '190',
+  '193': '190',
+  '194': '190',
+};
 
 export type ProgressSectionKey =
   | 'strengthChart'
@@ -98,6 +110,14 @@ export interface WorkoutRecord {
   sourceRoutineId?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface WorkoutStreakInfo {
+  current: number;
+  isActive: boolean;
+  startedAtDate: string | null;
+  latestWorkoutDate: string | null;
+  hoursUntilReset: number;
 }
 
 export interface DBUser {
@@ -336,6 +356,68 @@ function sortWorkouts(workouts: WorkoutRecord[]) {
   });
 }
 
+function getWorkoutCompletedAtMs(workout: Pick<WorkoutRecord, 'createdAt' | 'date'>) {
+  const completedAtMs = new Date(workout.createdAt).getTime();
+  if (Number.isFinite(completedAtMs)) return completedAtMs;
+  return new Date(`${normalizeDate(workout.date)}T12:00:00`).getTime();
+}
+
+function getInclusiveCalendarSpanDays(fromDateValue: string, toDateValue: string) {
+  const fromDate = new Date(`${normalizeDate(fromDateValue)}T00:00:00`);
+  const toDate = new Date(`${normalizeDate(toDateValue)}T00:00:00`);
+  const diffDays = Math.round((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.max(1, diffDays + 1);
+}
+
+function calculateWorkoutStreakInfo(workouts: WorkoutRecord[], now = new Date()): WorkoutStreakInfo {
+  const sortedWorkouts = sortWorkouts(workouts);
+  if (!sortedWorkouts.length) {
+    return {
+      current: 0,
+      isActive: false,
+      startedAtDate: null,
+      latestWorkoutDate: null,
+      hoursUntilReset: 0,
+    };
+  }
+
+  const latestWorkout = sortedWorkouts[0];
+  const latestWorkoutMs = getWorkoutCompletedAtMs(latestWorkout);
+  const nowMs = Number.isFinite(now.getTime()) ? now.getTime() : Date.now();
+  const elapsedMs = nowMs - latestWorkoutMs;
+
+  if (!Number.isFinite(latestWorkoutMs) || elapsedMs >= STREAK_RESET_MS) {
+    return {
+      current: 0,
+      isActive: false,
+      startedAtDate: null,
+      latestWorkoutDate: latestWorkout.date,
+      hoursUntilReset: 0,
+    };
+  }
+
+  let streakStartWorkout = latestWorkout;
+  let previousWorkout = latestWorkout;
+
+  for (const candidateWorkout of sortedWorkouts.slice(1)) {
+    const gapMs = getWorkoutCompletedAtMs(previousWorkout) - getWorkoutCompletedAtMs(candidateWorkout);
+    if (!Number.isFinite(gapMs) || gapMs >= STREAK_RESET_MS) break;
+
+    streakStartWorkout = candidateWorkout;
+    previousWorkout = candidateWorkout;
+  }
+
+  const msUntilReset = STREAK_RESET_MS - Math.max(0, elapsedMs);
+
+  return {
+    current: getInclusiveCalendarSpanDays(streakStartWorkout.date, latestWorkout.date),
+    isActive: true,
+    startedAtDate: streakStartWorkout.date,
+    latestWorkoutDate: latestWorkout.date,
+    hoursUntilReset: Math.max(0, Math.min(STREAK_RESET_HOURS, Math.ceil(msUntilReset / (1000 * 60 * 60)))),
+  };
+}
+
 const staleAlexSeedWorkoutIds = new Set([
   '1006a775-19f4-4b2f-aa05-d116dc6d1a0d',
   '14b8c15f-1e72-48a0-bd76-273d7a3caf8b',
@@ -496,12 +578,13 @@ function coerceSet(set: Partial<WorkoutSet>, index: number): WorkoutSet {
 }
 
 function coerceExerciseLog(log: Partial<ExerciseLog>): ExerciseLog {
-  const exercise = exercises.find((item) => item.id === log.exerciseId);
+  const exerciseId = log.exerciseId ? (EXERCISE_ID_ALIASES[log.exerciseId] ?? log.exerciseId) : undefined;
+  const exercise = exercises.find((item) => item.id === exerciseId);
   const sets = Array.isArray(log.sets) ? log.sets.map(coerceSet) : [];
 
   return {
-    exerciseId: log.exerciseId ?? exercise?.id ?? createId('exercise'),
-    exerciseName: log.exerciseName ?? exercise?.name ?? 'Exercise',
+    exerciseId: exercise?.id ?? exerciseId ?? createId('exercise'),
+    exerciseName: exercise?.name ?? log.exerciseName ?? 'Exercise',
     mainMuscles: (log.mainMuscles ?? exercise?.mainMuscles ?? []) as MuscleGroup[],
     sets,
     supersetGroupId: typeof log.supersetGroupId === 'string' ? log.supersetGroupId : undefined,
@@ -522,14 +605,28 @@ function coerceRoutineSet(set: Partial<RoutineSet>): RoutineSet {
 
 function normalizeRoutine(raw: Partial<WorkoutRoutine>, userId: string, fallbackIndex: number): WorkoutRoutine {
   const now = new Date().toISOString();
-  const logs = raw.exerciseLogs?.map((log) => ({
-    exerciseId: log.exerciseId,
-    exerciseName: log.exerciseName,
-    mainMuscles: log.mainMuscles,
-    sets: log.sets.map(coerceRoutineSet),
-    supersetGroupId: typeof log.supersetGroupId === 'string' ? log.supersetGroupId : undefined,
-  }));
-  const routineExercises = raw.exercises?.filter(Boolean) ?? [];
+  const logs = raw.exerciseLogs
+    ?.map((log) => {
+      const exerciseId = log.exerciseId ? (EXERCISE_ID_ALIASES[log.exerciseId] ?? log.exerciseId) : undefined;
+      const exercise = exercises.find((item) => item.id === exerciseId);
+      if (!exercise) return null;
+
+      return {
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        mainMuscles: exercise.mainMuscles,
+        sets: log.sets.map(coerceRoutineSet),
+        supersetGroupId: typeof log.supersetGroupId === 'string' ? log.supersetGroupId : undefined,
+      };
+    })
+    .filter((log): log is RoutineExerciseLog => Boolean(log));
+  const routineExercises =
+    raw.exercises
+      ?.map((rawExercise) => {
+        const exerciseId = rawExercise?.id ? (EXERCISE_ID_ALIASES[rawExercise.id] ?? rawExercise.id) : undefined;
+        return exercises.find((exercise) => exercise.id === exerciseId) ?? null;
+      })
+      .filter((exercise): exercise is Exercise => Boolean(exercise)) ?? [];
 
   return {
     id: raw.id ?? `${userId}-routine-${fallbackIndex}`,
@@ -1514,21 +1611,12 @@ export const DataService = {
       );
   },
 
+  getWorkoutStreakInfo(userId: string) {
+    return calculateWorkoutStreakInfo(this.getWorkoutsByUserId(userId));
+  },
+
   getWorkoutStreak(userId: string) {
-    const workouts = this.getWorkoutsByUserId(userId);
-    if (!workouts.length) return 0;
-
-    const workoutDates = new Set(workouts.map((workout) => workout.date));
-    const latestDate = workouts[0].date;
-    let cursor = new Date(`${latestDate}T00:00:00`);
-    let streak = 0;
-
-    while (workoutDates.has(normalizeDate(cursor))) {
-      streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    }
-
-    return streak;
+    return this.getWorkoutStreakInfo(userId).current;
   },
 
   getProgressExerciseOptions(userId: string): ExerciseProgressOption[] {

@@ -199,7 +199,7 @@ function schema(
 
 function inferEquipment(name: string) {
   if (name.includes('Warm-Up') || name.includes('Band ') || ['Dynamic Warm-Up', 'Arm Circles', 'Leg Swings', 'Hip Circles', 'Shoulder Dislocates', 'Wall Slide', 'Ankle Rocks', 'Dead Bug', 'Bird Dog', 'Plank', 'Side Plank', 'Hollow Hold'].includes(name)) return 'Warm-up';
-  if (['Treadmill Run', 'Treadmill Walk', 'Incline Treadmill Walk', 'Outdoor Run', 'Outdoor Walk', 'Stationary Bike', 'Spin Bike', 'Assault Bike', 'Cycling', 'Rowing Machine', 'SkiErg', 'StairMaster', 'Elliptical', 'Cross Trainer', 'Swimming', 'Hiking', 'Jump Rope', 'Battle Ropes', 'Sled Push', 'Sled Pull', 'Burpees', 'Mountain Climbers', 'High Knees', 'Box Jumps'].includes(name)) return 'Cardio';
+  if (['Treadmill', 'Stationary Bike', 'Spin Bike', 'Assault Bike', 'Cycling', 'Rowing Machine', 'SkiErg', 'StairMaster', 'Elliptical', 'Cross Trainer', 'Swimming', 'Hiking', 'Jump Rope', 'Battle Ropes', 'Sled Push', 'Sled Pull', 'Burpees', 'Mountain Climbers', 'High Knees', 'Box Jumps'].includes(name)) return 'Cardio';
   if (name.includes('Smith Machine')) return 'Smith Machine';
   if (name.includes('Dumbbell')) return 'Dumbbell';
   if (name.includes('Barbell') || name.includes('EZ-Bar') || name.includes('Good Morning')) return 'Barbell';
@@ -208,14 +208,14 @@ function inferEquipment(name: string) {
   if (name.includes('Kettlebell')) return 'Kettlebell';
   if (name.includes('Trap Bar')) return 'Trap Bar';
   if (name.includes('Plate')) return 'Plate';
-  if (name.includes('Pull-Up') || name.includes('Chin-Up') || name.includes('Push-Up') || name.includes('Dip') || name.includes('Bodyweight') || name.includes('Dead Hang') || name.includes('Hanging') || name.includes('Inverted Row')) return 'Bodyweight';
+  if (name.includes('Pull-Up') || name.includes('Chin-Up') || name.includes('Push-Up') || name.includes('Dip') || name.includes('Bodyweight') || name.includes('Dead Hang') || name.includes('Hanging') || name.includes('Inverted Row') || name.includes('Plank') || name.includes('Crunch') || name.includes('Sit-Up') || name.includes('Ab Wheel') || name.includes('Russian Twist') || name.includes('Dragon Flag')) return 'Bodyweight';
   return undefined;
 }
 
 function inferCategory(name: string, mainMuscles: MuscleGroup[]): ExerciseCategory {
   if (mainMuscles.includes('Warm-up')) return 'Warm-up';
   if (mainMuscles.includes('Cardio')) return 'Cardio';
-  if (name.includes('Walk') || name.includes('Carry') || name.includes('Hold') || name.includes('Hang') || name.includes('Pinch')) return 'Carry';
+  if (name.includes('Walk') || name.includes('Carry') || name.includes('Hold') || (name.includes('Hang') && !name.includes('Hanging')) || name.includes('Pinch')) return 'Carry';
   if (
     name.includes('Fly') ||
     name.includes('Curl') ||
@@ -243,7 +243,7 @@ function inferLoggingSchema(name: string, mainMuscles: MuscleGroup[], equipment?
     );
   }
 
-  if (['Outdoor Run', 'Outdoor Walk', 'Cycling', 'Swimming', 'Hiking'].includes(name)) {
+  if (['Cycling', 'Swimming', 'Hiking'].includes(name)) {
     return schema(
       'time_distance',
       'Time and distance',
@@ -300,7 +300,8 @@ function inferLoggingSchema(name: string, mainMuscles: MuscleGroup[], equipment?
 
   if (
     name.includes('Hold') ||
-    name.includes('Hang') ||
+    name.includes('Dead Hang') ||
+    name.includes('Towel Hang') ||
     name.includes('Pinch') ||
     name.includes('Wall Sit') ||
     name.includes('Plank') ||
@@ -434,8 +435,8 @@ export const exercises: Exercise[] = [
   ex('34', 'Incline Machine Chest Press', ['Chest', 'Triceps', 'Delts']),
   ex('35', 'Decline Barbell Bench Press', ['Chest', 'Triceps']),
   ex('36', 'Decline Dumbbell Bench Press', ['Chest', 'Triceps']),
+  ex('246', 'Decline Machine Chest Press', ['Chest', 'Triceps']),
   ex('37', 'Push-Up', ['Chest', 'Triceps', 'Delts']),
-  ex('38', 'Weighted Push-Up', ['Chest', 'Triceps', 'Delts']),
   ex('22', 'Chest Dip', ['Chest', 'Triceps', 'Delts']),
   ex('39', 'Dumbbell Fly', ['Chest']),
   ex('3', 'Cable Fly', ['Chest']),
@@ -448,8 +449,6 @@ export const exercises: Exercise[] = [
   ex('43', 'Assisted Pull-Up', ['Back', 'Biceps']),
   ex('6', 'Lat Pulldown', ['Back', 'Biceps']),
   ex('44', 'Close-Grip Lat Pulldown', ['Back', 'Biceps']),
-  ex('45', 'Wide-Grip Lat Pulldown', ['Back', 'Biceps']),
-  ex('46', 'Neutral-Grip Lat Pulldown', ['Back', 'Biceps']),
   ex('47', 'Single-Arm Lat Pulldown', ['Back', 'Biceps']),
   ex('5', 'Barbell Bent-Over Row', ['Back', 'Biceps', 'Forearms']),
   ex('48', 'Pendlay Row', ['Back', 'Biceps', 'Forearms']),
@@ -458,8 +457,8 @@ export const exercises: Exercise[] = [
   ex('51', 'Chest-Supported Machine Row', ['Back', 'Biceps']),
   ex('52', 'Seated Cable Row', ['Back', 'Biceps']),
   ex('24', 'T-Bar Row', ['Back', 'Biceps', 'Forearms']),
+  ex('247', 'Chest-Supported T-Bar Row', ['Back', 'Biceps', 'Forearms']),
   ex('53', 'Machine Row', ['Back', 'Biceps']),
-  ex('54', 'Plate-Loaded Row', ['Back', 'Biceps']),
   ex('55', 'Smith Machine Row', ['Back', 'Biceps']),
   ex('56', 'Inverted Row', ['Back', 'Biceps']),
   ex('57', 'Single-Arm Cable Row', ['Back', 'Biceps']),
@@ -524,12 +523,14 @@ export const exercises: Exercise[] = [
   ex('105', 'Hack Squat', ['Quads', 'Glutes']),
   ex('106', 'Pendulum Squat', ['Quads', 'Glutes']),
   ex('14', 'Leg Press', ['Quads', 'Hamstrings', 'Glutes']),
+  ex('248', 'Single-Leg Leg Press', ['Quads', 'Glutes']),
   ex('107', 'Belt Squat', ['Quads', 'Glutes']),
   ex('108', 'V-Squat', ['Quads', 'Glutes']),
   ex('15', 'Leg Extension', ['Quads']),
   ex('109', 'Single-Leg Leg Extension', ['Quads']),
   ex('29', 'Bulgarian Split Squat', ['Quads', 'Hamstrings', 'Glutes']),
   ex('110', 'Walking Lunge', ['Quads', 'Hamstrings', 'Glutes']),
+  ex('249', 'Lateral Lunge', ['Quads', 'Glutes', 'Hamstrings']),
   ex('111', 'Reverse Lunge', ['Quads', 'Hamstrings', 'Glutes']),
   ex('112', 'Forward Lunge', ['Quads', 'Hamstrings', 'Glutes']),
   ex('113', 'Step-Up', ['Quads', 'Hamstrings', 'Glutes']),
@@ -538,7 +539,12 @@ export const exercises: Exercise[] = [
   ex('116', 'Sissy Squat', ['Quads']),
   ex('117', 'Wall Sit', ['Quads']),
   ex('118', 'Spanish Squat', ['Quads']),
+  ex('250', 'Hip Adduction Machine', ['Quads', 'Glutes']),
+  ex('251', 'Hip Abduction Machine', ['Glutes']),
+  ex('252', 'Cable Hip Adduction', ['Quads', 'Glutes']),
+  ex('253', 'Cable Hip Abduction', ['Glutes']),
   ex('16', 'Romanian Deadlift', ['Hamstrings', 'Glutes', 'Back', 'Forearms']),
+  ex('255', 'Smith Machine Romanian Deadlift', ['Hamstrings', 'Glutes', 'Back']),
   ex('119', 'Dumbbell Romanian Deadlift', ['Hamstrings', 'Glutes', 'Back', 'Forearms']),
   ex('120', 'Single-Leg Romanian Deadlift', ['Hamstrings', 'Glutes']),
   ex('121', 'Stiff-Leg Deadlift', ['Hamstrings', 'Glutes', 'Back']),
@@ -555,6 +561,12 @@ export const exercises: Exercise[] = [
   ex('131', 'Reverse Hyperextension', ['Hamstrings', 'Glutes', 'Back']),
   ex('132', '45-Degree Back Extension', ['Hamstrings', 'Glutes', 'Back']),
   ex('30', 'Hip Thrust', ['Glutes', 'Hamstrings']),
+  ex('256', 'Barbell Glute Bridge', ['Glutes', 'Hamstrings']),
+  ex('257', 'Machine Hip Thrust', ['Glutes', 'Hamstrings']),
+  ex('258', 'Smith Machine Hip Thrust', ['Glutes', 'Hamstrings']),
+  ex('259', 'Cable Glute Kickback', ['Glutes', 'Hamstrings']),
+  ex('260', 'Machine Glute Kickback', ['Glutes', 'Hamstrings']),
+  ex('254', 'Trap Bar Deadlift', ['Quads', 'Glutes', 'Hamstrings', 'Back']),
   ex('18', 'Barbell Overhead Press', ['Delts', 'Triceps']),
   ex('133', 'Seated Barbell Shoulder Press', ['Delts', 'Triceps']),
   ex('134', 'Dumbbell Shoulder Press', ['Delts', 'Triceps']),
@@ -586,6 +598,7 @@ export const exercises: Exercise[] = [
   ex('159', 'Dumbbell Standing Calf Raise', ['Calves']),
   ex('160', 'Single-Leg Standing Calf Raise', ['Calves']),
   ex('161', 'Seated Calf Raise', ['Calves']),
+  ex('261', 'Smith Machine Seated Calf Raise', ['Calves']),
   ex('162', 'Machine Seated Calf Raise', ['Calves']),
   ex('163', 'Dumbbell Seated Calf Raise', ['Calves']),
   ex('164', 'Leg Press Calf Raise', ['Calves']),
@@ -614,11 +627,7 @@ export const exercises: Exercise[] = [
   ex('187', 'Barbell Hold', ['Forearms', 'Back']),
   ex('188', 'Dumbbell Hold', ['Forearms']),
   ex('189', 'Fat Grip Curl', ['Forearms', 'Biceps']),
-  ex('190', 'Treadmill Run', ['Cardio']),
-  ex('191', 'Treadmill Walk', ['Cardio']),
-  ex('192', 'Incline Treadmill Walk', ['Cardio']),
-  ex('193', 'Outdoor Run', ['Cardio']),
-  ex('194', 'Outdoor Walk', ['Cardio']),
+  ex('190', 'Treadmill', ['Cardio']),
   ex('195', 'Stationary Bike', ['Cardio']),
   ex('196', 'Spin Bike', ['Cardio']),
   ex('197', 'Assault Bike', ['Cardio']),
@@ -670,6 +679,14 @@ export const exercises: Exercise[] = [
   ex('243', 'Pallof Press', ['Core', 'Warm-up']),
   ex('244', 'Hanging Leg Raise', ['Core']),
   ex('245', 'Cable Crunch', ['Core']),
+  ex('262', 'Copenhagen Plank', ['Core', 'Quads']),
+  ex('263', 'Crunch', ['Core']),
+  ex('264', 'Sit-Up', ['Core']),
+  ex('265', 'Hanging Knee Raise', ['Core']),
+  ex('266', 'Ab Wheel Rollout', ['Core']),
+  ex('267', 'Russian Twist', ['Core']),
+  ex('268', 'Cable Wood Chop', ['Core']),
+  ex('269', 'Dragon Flag', ['Core']),
 ];
 
 export const lastWorkout: Workout = {
@@ -950,7 +967,7 @@ const may2026WorkoutTemplates: WorkoutTemplate[] = [
       templateExerciseLog('4', [templateSet(0, 8), templateSet(0, 8), templateSet(0, 7), templateSet(0, 6)]),
       templateExerciseLog('5', [templateSet(70, 8), templateSet(70, 8), templateSet(70, 8), templateSet(65, 10)]),
       templateExerciseLog('6', [templateSet(65, 10), templateSet(65, 10), templateSet(60, 12)]),
-      templateExerciseLog('51', [templateSet(70, 10), templateSet(70, 10), templateSet(65, 12)]),
+      templateExerciseLog('50', [templateSet(70, 10), templateSet(70, 10), templateSet(65, 12)]),
       templateExerciseLog('20', [templateSet(25, 15), templateSet(25, 15), templateSet(25, 15)]),
       templateExerciseLog('66', [templateSet(35, 10), templateSet(35, 10), templateSet(32.5, 12)]),
       templateExerciseLog('9', [templateSet(18, 12), templateSet(18, 10)]),
@@ -975,7 +992,7 @@ const may2026WorkoutTemplates: WorkoutTemplate[] = [
     'template-may-cardio-warmup',
     'Cardio + Warm-up',
     [
-      templateExerciseLog('192', [templateDurationSet(35)]),
+      templateExerciseLog('190', [templateDurationSet(35)]),
       templateExerciseLog('214', [templateWarmupSet(10), templateWarmupSet(10)]),
       templateExerciseLog('219', [templateWarmupSet(20), templateWarmupSet(20)]),
       templateExerciseLog('221', [templateSet(5, 15, 5, 'warmup'), templateSet(5, 15, 5, 'warmup')]),

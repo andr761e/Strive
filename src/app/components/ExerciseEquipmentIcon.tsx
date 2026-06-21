@@ -133,7 +133,7 @@ function getExerciseSymbolVariant(name: string, category: ExerciseEquipmentCateg
   if (name.includes('dip')) return 'dip';
   if (name.includes('push-up') || name.includes('scapular push-up')) return 'push-up';
   if (name.includes('hold') || name.includes('plank') || name.includes('wall sit')) return 'hold';
-  if (name.includes('treadmill') || name.includes('outdoor run') || name.includes('outdoor walk')) return 'treadmill';
+  if (name.includes('treadmill')) return 'treadmill';
   if (name.includes('bike') || name.includes('cycling')) return 'bike';
   if (name.includes('rowing')) return 'rower';
   if (name.includes('skierg')) return 'skierg';

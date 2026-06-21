@@ -17,7 +17,8 @@ export function HomePage() {
     const latestWorkout = DataService.getLatestWorkout(user.id);
     const weeklyVolume = DataService.getWeeklyVolume(user.id);
     const muscleStatus = DataService.getMuscleAnalysis(user.id);
-    const streak = DataService.getWorkoutStreak(user.id);
+    const streakInfo = DataService.getWorkoutStreakInfo(user.id);
+    const streak = streakInfo.current;
     const nextRoutine =
       [...routines].sort((a, b) => {
         if (!a.lastPerformed && !b.lastPerformed) return 0;
@@ -26,7 +27,7 @@ export function HomePage() {
         return new Date(a.lastPerformed).getTime() - new Date(b.lastPerformed).getTime();
       })[0] ?? null;
 
-    return { routines, latestWorkout, weeklyVolume, muscleStatus, streak, nextRoutine };
+    return { routines, latestWorkout, weeklyVolume, muscleStatus, streak, streakInfo, nextRoutine };
   }, [user]);
 
   const focusItems = useMemo(() => {
@@ -60,6 +61,12 @@ export function HomePage() {
   };
 
   const streakLabel = dashboard.streak > 0 ? `${dashboard.streak} day streak` : 'Ready to start';
+  const streakDetail =
+    dashboard.streak > 0
+      ? `${dashboard.streakInfo.hoursUntilReset}h left before this streak resets`
+      : dashboard.latestWorkout
+        ? 'Log a workout to restart your streak'
+        : 'Log your first workout to build momentum';
   const hasTrainingData = Boolean(dashboard.latestWorkout);
 
   return (
@@ -73,14 +80,12 @@ export function HomePage() {
       <div className="px-4 mt-4 mb-4">
         <div className="premium-card p-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-500/15 rounded-lg">
-              <Flame className="w-6 h-6 text-orange-400" />
+            <div className={`streak-flame-shell ${dashboard.streak > 0 ? 'is-live' : ''}`}>
+              <Flame className="streak-flame-icon h-6 w-6" />
             </div>
             <div className="flex-1">
               <div className="text-lg text-white mb-0.5">{streakLabel}</div>
-              <div className="text-sm text-zinc-400">
-                {dashboard.latestWorkout ? `Last session: ${dashboard.latestWorkout.workoutName}` : 'Log your first workout to build momentum'}
-              </div>
+              <div className="text-sm text-zinc-400">{streakDetail}</div>
             </div>
             <button
               onClick={quickStartWorkout}

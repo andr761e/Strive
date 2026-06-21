@@ -1,7 +1,50 @@
 const NOTIFICATION_SCHEDULE_STORAGE_KEY = 'strive_notification_schedule_v1';
 const NOTIFICATION_PERMISSION_PROMPT_STORAGE_KEY = 'strive_notification_permission_prompted_v1';
 
-export const POST_WORKOUT_REMINDER_HOURS = [24, 48, 72, 96, 120, 144, 168] as const;
+export const POST_WORKOUT_REMINDER_HOURS = [24, 48, 60, 68, 71, 72, 96, 120, 144, 168] as const;
+
+const POST_WORKOUT_REMINDER_COPY: Record<number, { title: string; body: string }> = {
+  24: {
+    title: '24 hours since your last workout',
+    body: 'One day is fine. Keep the rhythm easy to continue.',
+  },
+  48: {
+    title: '48 hours since your last workout',
+    body: 'You still have time to keep the streak alive. Plan the next session today.',
+  },
+  60: {
+    title: '12 hours to protect your streak',
+    body: 'Your workout streak resets at 72 hours. A short session still counts.',
+  },
+  68: {
+    title: '4 hours left on your streak',
+    body: 'This is the save point. Open Strive and log the next workout before the streak resets.',
+  },
+  71: {
+    title: '1 hour left to keep the streak',
+    body: 'Last call before the 72-hour reset. Get something logged if you want to keep it alive.',
+  },
+  72: {
+    title: '72 hours since your last workout',
+    body: 'Your streak resets now. Log a workout to start building it again.',
+  },
+  96: {
+    title: '4 days since your last workout',
+    body: 'Momentum is easier to rebuild when you start today.',
+  },
+  120: {
+    title: '5 days since your last workout',
+    body: 'A quick workout is enough to restart the streak and get back on track.',
+  },
+  144: {
+    title: '6 days since your last workout',
+    body: 'Even a short session beats disappearing from the plan.',
+  },
+  168: {
+    title: '7 days since your last workout',
+    body: 'A full week has passed. Open Strive and make the next workout simple.',
+  },
+};
 
 export interface ScheduledWorkoutReminder {
   id: string;
@@ -118,9 +161,15 @@ function storeReminders(reminders: ScheduledWorkoutReminder[]) {
   window.localStorage.setItem(NOTIFICATION_SCHEDULE_STORAGE_KEY, JSON.stringify(reminders));
 }
 
-function getReminderCompletedAtMs(reminder: ScheduledWorkoutReminder) {
+function getReminderFireAtMs(reminder: ScheduledWorkoutReminder) {
   const fireAtMs = new Date(reminder.fireAt).getTime();
   if (Number.isNaN(fireAtMs)) return Number.NEGATIVE_INFINITY;
+  return fireAtMs;
+}
+
+function getReminderCompletedAtMs(reminder: ScheduledWorkoutReminder) {
+  const fireAtMs = getReminderFireAtMs(reminder);
+  if (!Number.isFinite(fireAtMs)) return Number.NEGATIVE_INFINITY;
   return fireAtMs - reminder.hoursAfterWorkout * 60 * 60 * 1000;
 }
 
@@ -139,39 +188,10 @@ export function buildPostWorkoutReminders({
 
   return POST_WORKOUT_REMINDER_HOURS.map((hoursAfterWorkout) => {
     const fireAt = new Date(completedDate.getTime() + hoursAfterWorkout * 60 * 60 * 1000);
-    const dayNumber = hoursAfterWorkout / 24;
-
-    const reminderCopy: Record<number, { title: string; body: string }> = {
-      1: {
-        title: '24 hours since your last workout',
-        body: 'One day is fine. Two starts looking like a pattern. Get the next session on the board.',
-      },
-      2: {
-        title: '48 hours. You are drifting.',
-        body: 'Recovery window is open. Momentum is easier to keep than rebuild.',
-      },
-      3: {
-        title: '3 days. This is officially slacking.',
-        body: 'No drama. Just open Strive, pick a routine, and do the work.',
-      },
-      4: {
-        title: '4 days. Momentum is leaking.',
-        body: 'Your future numbers are being decided right now. Go train or log an intentional rest day.',
-      },
-      5: {
-        title: '5 days. The weights are not moving themselves.',
-        body: 'This is the point where a break becomes a slide. Pull it back today.',
-      },
-      6: {
-        title: '6 days. One excuse from a full week off.',
-        body: 'Even a short session beats disappearing. Get something done.',
-      },
-      7: {
-        title: '7 days. Enough.',
-        body: 'A full week without a logged workout. Time to stop negotiating and get back in.',
-      },
+    const copy = POST_WORKOUT_REMINDER_COPY[hoursAfterWorkout] ?? {
+      title: 'Time to train',
+      body: 'Open Strive and log your next workout.',
     };
-    const copy = reminderCopy[dayNumber];
 
     return {
       id: `${workoutId}-${hoursAfterWorkout}h`,
@@ -215,7 +235,7 @@ export async function cancelPostWorkoutReminders(workoutId?: string) {
 
 export async function reconcilePostWorkoutReminderSchedule() {
   const storedReminders = readStoredReminders();
-  if (storedReminders.length <= POST_WORKOUT_REMINDER_HOURS.length) return;
+  if (storedReminders.length === 0) return;
 
   const latestReminder = storedReminders.reduce<ScheduledWorkoutReminder | null>((latest, reminder) => {
     if (!latest) return reminder;
@@ -228,6 +248,7 @@ export async function reconcilePostWorkoutReminderSchedule() {
   }
 
   const latestWorkoutId = latestReminder.workoutId;
+  const latestWorkoutReminders = storedReminders.filter((reminder) => reminder.workoutId === latestWorkoutId);
   const staleWorkoutIds = Array.from(
     new Set(
       storedReminders
@@ -236,13 +257,56 @@ export async function reconcilePostWorkoutReminderSchedule() {
     ),
   );
 
-  if (staleWorkoutIds.length === 0) return;
-
-  // Older app versions could keep reminder chains from previous workouts.
-  // Keep the latest workout's chain and cancel every stale native alarm.
-  storeReminders(storedReminders.filter((reminder) => reminder.workoutId === latestWorkoutId));
+  const completedAtMs = getReminderCompletedAtMs(latestReminder);
   const bridge = getBridge();
-  await Promise.allSettled(staleWorkoutIds.map((workoutId) => bridge?.cancelWorkoutReminders?.(workoutId)));
+
+  if (!Number.isFinite(completedAtMs)) {
+    if (staleWorkoutIds.length > 0) {
+      storeReminders(latestWorkoutReminders);
+      await Promise.allSettled(staleWorkoutIds.map((workoutId) => bridge?.cancelWorkoutReminders?.(workoutId)));
+    }
+    return;
+  }
+
+  const nowMs = Date.now();
+  const refreshedLatestReminders = buildPostWorkoutReminders({
+    userId: latestReminder.userId,
+    workoutId: latestWorkoutId,
+    workoutName: latestReminder.workoutName,
+    completedAt: new Date(completedAtMs).toISOString(),
+  }).filter((reminder) => getReminderFireAtMs(reminder) > nowMs);
+  const latestFutureReminders = latestWorkoutReminders.filter((reminder) => getReminderFireAtMs(reminder) > nowMs);
+  const hasCurrentLatestChain =
+    latestFutureReminders.length === refreshedLatestReminders.length &&
+    refreshedLatestReminders.every((expectedReminder) =>
+      latestFutureReminders.some(
+        (storedReminder) =>
+          storedReminder.hoursAfterWorkout === expectedReminder.hoursAfterWorkout &&
+          storedReminder.fireAt === expectedReminder.fireAt &&
+          storedReminder.title === expectedReminder.title &&
+          storedReminder.body === expectedReminder.body,
+      ),
+    );
+
+  if (refreshedLatestReminders.length === 0) {
+    storeReminders([]);
+    await bridge?.cancelWorkoutReminders?.(latestWorkoutId);
+    await Promise.allSettled(staleWorkoutIds.map((workoutId) => bridge?.cancelWorkoutReminders?.(workoutId)));
+    return;
+  }
+
+  if (!hasCurrentLatestChain) {
+    storeReminders(refreshedLatestReminders);
+    await bridge?.cancelWorkoutReminders?.(latestWorkoutId);
+    await Promise.allSettled(staleWorkoutIds.map((workoutId) => bridge?.cancelWorkoutReminders?.(workoutId)));
+    await bridge?.scheduleWorkoutReminders?.(refreshedLatestReminders);
+    return;
+  }
+
+  if (staleWorkoutIds.length > 0 || latestFutureReminders.length !== latestWorkoutReminders.length) {
+    storeReminders(latestFutureReminders);
+    await Promise.allSettled(staleWorkoutIds.map((workoutId) => bridge?.cancelWorkoutReminders?.(workoutId)));
+  }
 }
 
 export async function startActiveWorkoutNotification(payload: ActiveWorkoutNotificationPayload) {

@@ -295,7 +295,7 @@ type MayProgramDay = 'pushA' | 'pullA' | 'legsA' | 'cardioWarmup' | 'upperB' | '
 
 function lightCardioWarmup() {
   return [
-    exerciseLog('192', 'Incline Treadmill Walk', ['Cardio'], [durationSet(30)]),
+    exerciseLog('190', 'Treadmill', ['Cardio'], [durationSet(30)]),
     exerciseLog('214', 'Dynamic Warm-Up', ['Warm-up'], [warmupSet(10), warmupSet(10)]),
     exerciseLog('219', 'Band Pull-Apart', ['Warm-up', 'Back', 'Delts'], [warmupSet(20), warmupSet(20)]),
     exerciseLog('227', 'Bodyweight Squat', ['Warm-up', 'Quads'], [warmupSet(15), warmupSet(15)]),
@@ -339,7 +339,7 @@ function pullAMay() {
       set(65, 10),
     ]),
     exerciseLog('6', 'Lat Pulldown', ['Back', 'Biceps'], [set(65, 10), set(65, 10), set(60, 12)]),
-    exerciseLog('51', 'Chest-Supported Machine Row', ['Back', 'Biceps'], [
+    exerciseLog('50', 'Chest-Supported Dumbbell Row', ['Back', 'Biceps'], [
       set(70, 10),
       set(70, 10),
       set(65, 12),
@@ -379,7 +379,7 @@ function legsAMay() {
 
 function cardioWarmupMay() {
   return [
-    exerciseLog('192', 'Incline Treadmill Walk', ['Cardio'], [durationSet(35)]),
+    exerciseLog('190', 'Treadmill', ['Cardio'], [durationSet(35)]),
     exerciseLog('214', 'Dynamic Warm-Up', ['Warm-up'], [warmupSet(10), warmupSet(10)]),
     exerciseLog('219', 'Band Pull-Apart', ['Warm-up', 'Back', 'Delts'], [warmupSet(20), warmupSet(20)]),
     exerciseLog('221', 'Cable External Rotation', ['Warm-up', 'Delts'], [

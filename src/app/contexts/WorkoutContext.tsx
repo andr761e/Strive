@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode, useEffect, type Dispatch, type SetStateAction } from 'react';
-import { type Exercise, type ExerciseLog, type WorkoutSet } from '../data/mockData';
+import { exercises, type ExerciseLog } from '../data/mockData';
 import { useSettings } from './SettingsContext';
 import {
   type ActiveWorkoutNotificationPayload,
@@ -9,6 +9,16 @@ import {
 } from '../services/notifications';
 
 const ACTIVE_WORKOUT_STORAGE_KEY = 'strive_active_workout_v1';
+const EXERCISE_ID_ALIASES: Record<string, string> = {
+  '38': '37',
+  '45': '6',
+  '46': '6',
+  '54': '53',
+  '191': '190',
+  '192': '190',
+  '193': '190',
+  '194': '190',
+};
 
 export interface RestTimerState {
   exerciseId: string;
@@ -51,6 +61,36 @@ interface WorkoutContextType {
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
+function normalizePersistedExerciseLog(log: ExerciseLog): ExerciseLog | null {
+  const exerciseId = EXERCISE_ID_ALIASES[log.exerciseId] ?? log.exerciseId;
+  const exercise = exercises.find((item) => item.id === exerciseId);
+  if (!exercise) return null;
+
+  return {
+    ...log,
+    exerciseId: exercise.id,
+    exerciseName: exercise.name,
+    mainMuscles: exercise.mainMuscles,
+  };
+}
+
+function isExerciseLog(log: ExerciseLog | null): log is ExerciseLog {
+  return Boolean(log);
+}
+
+function normalizePersistedRestTimer(restTimer: RestTimerState | null): RestTimerState | null {
+  if (!restTimer) return null;
+  const exerciseId = EXERCISE_ID_ALIASES[restTimer.exerciseId] ?? restTimer.exerciseId;
+  const exercise = exercises.find((item) => item.id === exerciseId);
+  if (!exercise) return null;
+
+  return {
+    ...restTimer,
+    exerciseId: exercise.id,
+    exerciseName: exercise.name,
+  };
+}
+
 function readPersistedActiveWorkout(): PersistedActiveWorkout | null {
   if (typeof window === 'undefined') return null;
 
@@ -67,10 +107,10 @@ function readPersistedActiveWorkout(): PersistedActiveWorkout | null {
     return {
       workoutName: parsed.workoutName,
       workoutStartTime: startedAt.toISOString(),
-      workoutExercises: parsed.workoutExercises,
+      workoutExercises: parsed.workoutExercises.map(normalizePersistedExerciseLog).filter(isExerciseLog),
       routineId: parsed.routineId ?? null,
       routineName: parsed.routineName ?? null,
-      activeRestTimer:
+      activeRestTimer: normalizePersistedRestTimer(
         parsed.activeRestTimer &&
         typeof parsed.activeRestTimer.exerciseId === 'string' &&
         typeof parsed.activeRestTimer.exerciseName === 'string' &&
@@ -84,6 +124,7 @@ function readPersistedActiveWorkout(): PersistedActiveWorkout | null {
               completedNotified: Boolean(parsed.activeRestTimer.completedNotified),
             }
           : null,
+      ),
     };
   } catch {
     return null;
